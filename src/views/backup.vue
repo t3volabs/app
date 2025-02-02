@@ -101,7 +101,7 @@ if (!key.value) {
 function generateKey() {
   function randomString(length) {
     return Array.from(crypto.getRandomValues(new Uint8Array(length)))
-      .map(b => b.toString(36).padStart(2, "0"))
+      .map((b) => b.toString(36).padStart(2, "0"))
       .join("")
       .substring(0, length);
   }
@@ -109,8 +109,6 @@ function generateKey() {
   key.value = `${randomString(10)}-t3vo-${randomString(16)}`;
   localStorage.setItem("backup_key", key.value);
 }
-
-
 
 async function syncData() {
   logMessages.value = ["Starting sync..."];
@@ -130,27 +128,37 @@ async function syncData() {
 
     remoteDbSize.value = JSON.stringify(remoteData).length / 1024;
 
-    log("Merging remote data into local database...");
-    await importDataToIndexedDB(remoteData);
-
-    log("Calculating local database size...");
+    log("Fetching local data...");
     const localData = await exportIndexedDBData();
     localDbSize.value = JSON.stringify(localData).length / 1024;
 
-    log("Encrypting local data...");
-    const encryptedData = encryptContent(localData);
+    log("Determining the latest update...");
 
-    log("Uploading encrypted database to remote...");
-    await axios.post(`${API_URL}/save/${backupid}`, { data: encryptedData });
+    const latestLocalTime = getLatestTimestamp(localData);
+    const latestRemoteTime = getLatestTimestamp(remoteData);
 
-    log("Sync completed successfully!");
+    log(`Local: ${new Date(latestLocalTime).toLocaleString()}, Remote: ${new Date(latestRemoteTime).toLocaleString()}`);
+
+    if (latestLocalTime > latestRemoteTime) {
+      log("Local data is newer, updating remote...");
+      const encryptedData = encryptContent(localData);
+      await axios.post(`${API_URL}/save/${backupid}`, { data: encryptedData });
+      log("Sync completed: Remote updated.");
+    } else if (latestRemoteTime > latestLocalTime) {
+      log("Remote data is newer, replacing local...");
+      await clearIndexedDB(); // Drop all local tables
+      await importDataToIndexedDB(remoteData);
+      log("Sync completed: Local replaced.");
+    } else {
+      log("Both local and remote are up to date.");
+    }
   } catch (error) {
     if (error.response && error.response.status === 404) {
       log("No remote data found, uploading local database...");
       const localData = await exportIndexedDBData();
       const encryptedData = encryptContent(localData);
       await axios.post(`${API_URL}/save/${backupid}`, { data: encryptedData });
-      log("Sync completed successfully!");
+      log("Sync completed: Remote initialized.");
     } else {
       log("Sync failed: " + error.message);
     }
@@ -179,6 +187,20 @@ async function importData(event) {
     log("Data imported successfully");
   };
   reader.readAsText(file);
+}
+
+function getLatestTimestamp(data) {
+  if (!data) return 0;
+
+  let latest = 0;
+  for (const store in data) {
+    for (const item of data[store]) {
+      if (item.updated_at && item.updated_at > latest) {
+        latest = item.updated_at;
+      }
+    }
+  }
+  return latest;
 }
 
 async function exportIndexedDBData() {
@@ -226,5 +248,26 @@ async function importDataToIndexedDB(data) {
       }
     }
   };
+}
+
+async function clearIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const dbName = "T3VO";
+    const request = indexedDB.open(dbName);
+
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      const transaction = db.transaction(db.objectStoreNames, "readwrite");
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject("Failed to clear IndexedDB");
+
+      Array.from(db.objectStoreNames).forEach((storeName) => {
+        transaction.objectStore(storeName).clear();
+      });
+    };
+
+    request.onerror = () => reject("Failed to open IndexedDB");
+  });
 }
 </script>
