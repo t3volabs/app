@@ -4,11 +4,9 @@
       <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Sync & Backup</h1>
 
       <div class="space-y-6">
-        <div class="relative">
-          <label for="key" class="block text-sm font-medium text-gray-700 mb-1">Backup Key</label>
-          <div class="mt-1 relative rounded-md shadow-sm">
-            <input v-model="key" id="key" type="text" placeholder="Enter or generate key" class="focus:ring-purple-500 focus:border-purple-500 block w-full pl-3 pr-24 sm:text-sm border-gray-300 rounded-md transition-all duration-200" :class="{ 'pr-24': !key, 'pr-12': key }" />
-          </div>
+        <div class="mt-1 flex items-center space-x-2">
+          <input v-model="key" id="key" type="text" placeholder="Enter or generate key" class="focus:ring-purple-500 focus:border-purple-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md transition-all duration-200" />
+          <button @click="generateKey" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200">Generate</button>
         </div>
 
         <div class="grid grid-cols-1 gap-4">
@@ -31,8 +29,8 @@
         </div>
 
         <div class="flex justify-between text-sm text-gray-700">
-          <span>Local DB Size: {{ localDbSize }} KB</span>
-          <span>Remote DB Size: {{ remoteDbSize }} KB</span>
+          <span>Local DB Size: {{ parseFloat(localDbSize).toFixed(2)  }} KB</span>
+          <span>Remote DB Size: {{ parseFloat(remoteDbSize).toFixed(2)  }} KB</span>
         </div>
 
         <transition name="fade">
@@ -65,38 +63,16 @@
 </style>
 
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import axios from "axios";
 import { RefreshCwIcon, ArrowDownIcon, ArrowUpIcon } from "lucide-vue-next";
 import CryptoJS from "crypto-js";
 
-function encryptContent(content) {
-  return CryptoJS.AES.encrypt(JSON.stringify(content), key.value.split("-t3vo-")[1]).toString();
-}
+const key = ref(localStorage.getItem("backup_key") || "");
 
-function decryptContent(encryptedContent) {
-  try {
-    const bytes = CryptoJS.AES.decrypt(encryptedContent, key.value.split("-t3vo-")[1]);
-    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-  } catch (e) {
-    console.error("Decryption error:", e);
-    return null;
-  }
-}
-
-const key = ref(localStorage.getItem("backup_key") || null);
-const API_URL = "https://sh.t3vo.com";
-const localDbSize = ref(0);
-const remoteDbSize = ref(0);
-const logMessages = ref([]);
-
-function log(message) {
-  logMessages.value.push(message);
-}
-
-if (!key.value) {
-  generateKey();
-}
+watch(key, (newKey) => {
+  localStorage.setItem("backup_key", newKey);
+});
 
 function generateKey() {
   function randomString(length) {
@@ -105,9 +81,16 @@ function generateKey() {
       .join("")
       .substring(0, length);
   }
-
   key.value = `${randomString(10)}-t3vo-${randomString(16)}`;
-  localStorage.setItem("backup_key", key.value);
+}
+
+const API_URL = "https://sh.t3vo.com";
+const localDbSize = ref(0);
+const remoteDbSize = ref(0);
+const logMessages = ref([]);
+
+function log(message) {
+  logMessages.value.push(message);
 }
 
 async function syncData() {
@@ -146,9 +129,10 @@ async function syncData() {
       log("Sync completed: Remote updated.");
     } else if (latestRemoteTime > latestLocalTime) {
       log("Remote data is newer, replacing local...");
-      await clearIndexedDB(); // Drop all local tables
+      await clearIndexedDB();
       await importDataToIndexedDB(remoteData);
       log("Sync completed: Local replaced.");
+      log(" ---  ")
     } else {
       log("Both local and remote are up to date.");
     }
@@ -269,5 +253,19 @@ async function clearIndexedDB() {
 
     request.onerror = () => reject("Failed to open IndexedDB");
   });
+}
+
+function encryptContent(content) {
+  return CryptoJS.AES.encrypt(JSON.stringify(content), key.value.split("-t3vo-")[1]).toString();
+}
+
+function decryptContent(encryptedContent) {
+  try {
+    const bytes = CryptoJS.AES.decrypt(encryptedContent, key.value.split("-t3vo-")[1]);
+    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+  } catch (e) {
+    console.error("Decryption error:", e);
+    return null;
+  }
 }
 </script>
