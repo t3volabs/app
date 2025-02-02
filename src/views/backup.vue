@@ -31,29 +31,31 @@ import axios from "axios";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-vue-next";
 
 const key = ref(localStorage.getItem("backup_key") || "");
-const API_URL = "http://localhost:3000";
+const API_URL = "https://sh.t3vo.com";
 
 onMounted(() => {
   if (!key.value) generateKey();
 });
 
 function generateKey() {
-  key.value = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+  key.value = Math.random().toString(36).substring(2, 12) + "t3vo" + Math.random().toString(36).substring(2, 12);
   localStorage.setItem("backup_key", key.value);
 }
 
 async function backupData() {
   if (!key.value) return alert("Key is required");
   const data = await exportIndexedDBData();
-  axios.post(`${API_URL}/save/${key.value}`, { data })
+  axios
+    .post(`${API_URL}/save/${key.value}`, { data })
     .then(() => alert("Data backed up successfully"))
     .catch(() => alert("Failed to back up data"));
 }
 
 async function retrieveData() {
   if (!key.value) return alert("Key is required");
-  axios.get(`${API_URL}/get/${key.value}`)
-    .then(response => {
+  axios
+    .get(`${API_URL}/get/${key.value}`)
+    .then((response) => {
       const { data } = response.data;
       if (data) {
         importDataToIndexedDB(data);
@@ -75,8 +77,8 @@ async function exportIndexedDBData() {
       const exportData = {};
       transaction.oncomplete = () => resolve(exportData);
       transaction.onerror = () => reject("Failed to export data");
-      
-      Array.from(db.objectStoreNames).forEach(storeName => {
+
+      Array.from(db.objectStoreNames).forEach((storeName) => {
         const store = transaction.objectStore(storeName);
         store.getAll().onsuccess = (event) => {
           exportData[storeName] = event.target.result;
@@ -95,11 +97,11 @@ async function importDataToIndexedDB(data) {
     const transaction = db.transaction(db.objectStoreNames, "readwrite");
     transaction.oncomplete = () => alert("Data imported successfully");
     transaction.onerror = () => alert("Failed to import data");
-    
-    Object.keys(data).forEach(storeName => {
+
+    Object.keys(data).forEach((storeName) => {
       if (db.objectStoreNames.contains(storeName)) {
         const store = transaction.objectStore(storeName);
-        data[storeName].forEach(item => store.add(item));
+        data[storeName].forEach((item) => store.add(item));
       }
     });
   };
