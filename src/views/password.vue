@@ -7,6 +7,12 @@
       <input v-model="newPassword.email" placeholder="Email" class="w-full p-2 mb-2 border rounded" />
       <input v-model="newPassword.password" type="password" placeholder="Password" class="w-full p-2 mb-2 border rounded" />
       <input v-model="newPassword.totpSecret" placeholder="TOTP (Optional)" class="w-full p-2 mb-2 border rounded" />
+
+      <div class="space-x-2 m-3" v-if="newPassword.totpSecret">
+        <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ generateTOTP30(newPassword.totpSecret) }}</span>
+        <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ generateTOTP60(newPassword.totpSecret) }}</span>
+      </div>
+
       <button @click="addPassword" class="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 transition-colors">Add Password</button>
     </div>
 
@@ -35,8 +41,13 @@
             </div>
 
             <div v-if="password.totpSecret" class="mt-2 flex items-center space-x-2">
-              <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ password.totp }}</span>
-              <button @click="copyToClipboard(password.totp)" class="text-blue-500 hover:text-blue-700">
+              <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ password.totp30 }}</span>
+              <button @click="copyToClipboard(password.totp30)" class="text-blue-500 hover:text-blue-700">
+                <CopyIcon size="20" />
+              </button>
+
+              <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ password.totp60 }}</span>
+              <button @click="copyToClipboard(password.totp60)" class="text-blue-500 hover:text-blue-700">
                 <CopyIcon size="20" />
               </button>
             </div>
@@ -83,13 +94,27 @@ async function pushToPasswords(title, username, email, password, totpSecret, url
   });
 }
 
-const generateTOTP = (secret) => {
+const generateTOTP30 = (secret) => {
   try {
     const totp = new TOTP({
       secret: Secret.fromBase32(secret),
       algorithm: "SHA1",
       digits: 6,
       period: 30,
+    });
+    return totp.generate();
+  } catch (error) {
+    return "Invalid Secret";
+  }
+};
+
+const generateTOTP60 = (secret) => {
+  try {
+    const totp = new TOTP({
+      secret: Secret.fromBase32(secret),
+      algorithm: "SHA1",
+      digits: 6,
+      period: 60,
     });
     return totp.generate();
   } catch (error) {
@@ -112,7 +137,8 @@ const loadPasswords = async () => {
     password: decryptContent(password.password),
     totpSecret: password.totpSecret ? decryptContent(password.totpSecret) : "",
     urls: password.urls,
-    totp: "",
+    totp30: "",
+    totp60: "",
     visible: false,
   }));
 };
@@ -183,7 +209,8 @@ watch(
 setInterval(() => {
   passwords.value.forEach((password) => {
     if (password.totpSecret) {
-      password.totp = generateTOTP(password.totpSecret);
+      password.totp30 = generateTOTP30(password.totpSecret);
+      password.totp60 = generateTOTP60(password.totpSecret);
     }
   });
 }, 1000 * 2);
