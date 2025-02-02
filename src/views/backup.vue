@@ -98,8 +98,6 @@ if (!key.value) {
   generateKey();
 }
 
-
-
 function generateKey() {
   function randomString(length) {
     return Array.from(crypto.getRandomValues(new Uint8Array(length)))
