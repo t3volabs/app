@@ -98,10 +98,21 @@ if (!key.value) {
   generateKey();
 }
 
+
+
 function generateKey() {
-  key.value = Math.random().toString(36).substring(2, 12) + "-t3vo-" + Math.random().toString(36).substring(2, 20);
+  function randomString(length) {
+    return Array.from(crypto.getRandomValues(new Uint8Array(length)))
+      .map(b => b.toString(36).padStart(2, "0"))
+      .join("")
+      .substring(0, length);
+  }
+
+  key.value = `${randomString(10)}-t3vo-${randomString(16)}`;
   localStorage.setItem("backup_key", key.value);
 }
+
+
 
 async function syncData() {
   logMessages.value = ["Starting sync..."];
