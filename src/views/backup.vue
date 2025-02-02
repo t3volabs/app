@@ -170,18 +170,25 @@ async function exportIndexedDBData() {
 async function importDataToIndexedDB(data) {
   const dbName = "T3VO";
   const request = indexedDB.open(dbName);
-  request.onsuccess = (event) => {
+  request.onsuccess = async (event) => {
     const db = event.target.result;
     const transaction = db.transaction(db.objectStoreNames, "readwrite");
     transaction.oncomplete = () => showSuccess("Data imported successfully");
     transaction.onerror = () => showError("Failed to import data");
 
-    Object.keys(data).forEach((storeName) => {
+    for (const storeName of Object.keys(data)) {
       if (db.objectStoreNames.contains(storeName)) {
         const store = transaction.objectStore(storeName);
-        data[storeName].forEach((item) => store.add(item));
+        for (const item of data[storeName]) {
+          const getRequest = store.get(item.id);
+          getRequest.onsuccess = (e) => {
+            if (!e.target.result) {
+              store.add(item);
+            }
+          };
+        }
       }
-    });
+    }
   };
 }
 
