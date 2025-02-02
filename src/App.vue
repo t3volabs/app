@@ -24,6 +24,9 @@
                 <component :is="item.icon" class="w-8 h-8 group-hover:text-red-400 transition-colors duration-200" />
               </router-link>
             </div>
+            <button @click="logout" class="p-2 rounded-lg transition duration-200 group">
+              <LogOut class="w-8 h-8 group-hover:text-red-400 transition-colors duration-200" />
+            </button>
           </div>
         </nav>
 
@@ -38,7 +41,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter, RouterView, RouterLink } from "vue-router";
-import { Home, Bookmark, Key, FileText, Pickaxe, RefreshCw } from "lucide-vue-next";
+import { Home, Bookmark, Key, FileText, Pickaxe, RefreshCw, LogOut } from "lucide-vue-next";
 import { sha256 } from "js-sha256";
 
 const encryptionKeySet = ref(!!localStorage.getItem("ENCRYPTION_KEY_HASH"));
@@ -74,6 +77,12 @@ const unlockApp = () => {
   }
 };
 
+const logout = () => {
+  sessionStorage.removeItem("ENCRYPTION_KEY");
+  isUnlocked.value = false;
+  router.push("/");
+};
+
 const navItems = [
   { name: "Home", icon: Home, to: "/" },
   { name: "Bookmark", icon: Bookmark, to: "/bookmark" },
@@ -91,3 +100,4 @@ body {
   font-family: "Inter", sans-serif;
 }
 </style>
+
