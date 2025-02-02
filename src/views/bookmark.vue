@@ -6,7 +6,7 @@ import { sha256 } from "js-sha256";
 
 const getRandomPastelColor = () => {
   const hue = Math.floor(Math.random() * 360);
-  return `hsl(${hue}, 100%, 98%)`;
+  return `hsl(${hue}, 90%, 98%)`;
 };
 
 async function pushToBookmarks(title, url, note) {

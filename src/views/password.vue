@@ -1,83 +1,93 @@
 <template>
-  <div class="m-auto p-4">
-    <div class="mb-6 p-4 border rounded-lg bg-gray-50 shadow">
-      <input v-model="newPassword.title" placeholder="Title" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newPassword.urls" placeholder="Website URLs" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newPassword.username" placeholder="Username" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newPassword.email" placeholder="Email" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newPassword.password" type="password" placeholder="Password" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newPassword.totpSecret" placeholder="TOTP (Optional)" class="w-full p-2 mb-2 border rounded" />
-
-      <div class="space-x-2 m-3" v-if="newPassword.totpSecret">
-        <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ generateTOTP30(newPassword.totpSecret) }}</span>
-        <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ generateTOTP60(newPassword.totpSecret) }}</span>
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+      <h2 class="text-2xl font-bold mb-4">Add New Password</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input v-model="newPassword.title" placeholder="Title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input v-model="newPassword.urls" placeholder="Website URLs" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input v-model="newPassword.username" placeholder="Username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input v-model="newPassword.email" placeholder="Email" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input v-model="newPassword.password" type="password" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input v-model="newPassword.totpSecret" placeholder="TOTP (Optional)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
       </div>
 
-      <button @click="addPassword" class="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 transition-colors">Add Password</button>
+      <div class="flex space-x-4 mt-4" v-if="newPassword.totpSecret">
+        <span class="bg-gray-100 px-4 py-2 rounded-lg text-lg font-mono">{{ generateTOTP30(newPassword.totpSecret) }}</span>
+        <span class="bg-gray-100 px-4 py-2 rounded-lg text-lg font-mono">{{ generateTOTP60(newPassword.totpSecret) }}</span>
+      </div>
+
+      <button @click="addPassword" class="mt-6 bg-blue-500 text-white px-6 py-3 rounded-lg w-full hover:bg-blue-600 transition-colors flex items-center justify-center">
+        <PlusIcon class="mr-2" size="20" />
+        Add Password
+      </button>
     </div>
 
-    <div class="mb-4 relative">
-      <input v-model="searchQuery" placeholder="Search passwords..." class="w-full p-2 pl-10 border rounded-lg" />
-      <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size="20" />
+    <div class="mb-6 relative">
+      <input v-model="searchQuery" placeholder="Search passwords..." class="w-full p-4 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      <SearchIcon class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size="24" />
     </div>
 
-    <ul class="space-y-4 mb-4">
-      <li v-for="password in paginatedPasswords" :key="password.id" class="p-4 border rounded-lg bg-white shadow hover:shadow-md transition-shadow">
-        <div class="flex justify-between items-center">
-          <div class="flex-grow">
-            <p class="font-bold">{{ password.title }}</p>
-            <p class="text-gray-500 text-sm">{{ password.username }} | {{ password.email }}</p>
-            <p class="text-blue-600 hover:underline">{{ password.urls }}</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div v-for="password in paginatedPasswords" :key="password.id" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-xl font-semibold text-gray-800">{{ password.title }}</h3>
+            <button @click="removePassword(password.id)" class="text-gray-500 hover:text-red-500 p-1 rounded-full hover:bg-red-100 transition-colors">
+              <TrashIcon size="20" />
+            </button>
+          </div>
+          <p class="text-sm text-gray-600 mb-2">{{ password.username }} | {{ password.email }}</p>
+          <p class="text-sm text-blue-600 hover:underline mb-4">{{ password.urls }}</p>
 
-            <div class="flex items-center space-x-2 mt-2">
-              <input :type="password.visible ? 'text' : 'password'" :value="password.password" class="p-1 border rounded w-48" readonly />
-              <button @click="toggleVisibility(password)" class="text-gray-600 hover:text-gray-800">
-                <EyeIcon v-if="!password.visible" size="20" />
-                <EyeOffIcon v-else size="20" />
-              </button>
-              <button @click="copyToClipboard(password.password)" class="text-blue-500 hover:text-blue-700">
+          <div class="flex items-center space-x-2 mb-4">
+            <input :type="password.visible ? 'text' : 'password'" :value="password.password" class="p-2 border rounded-lg w-full bg-gray-50" readonly />
+            <button @click="toggleVisibility(password)" class="text-gray-600 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100">
+              <EyeIcon v-if="!password.visible" size="20" />
+              <EyeOffIcon v-else size="20" />
+            </button>
+            <button @click="copyToClipboard(password.password)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100">
+              <CopyIcon size="20" />
+            </button>
+          </div>
+
+          <div v-if="password.totpSecret" class="mt-4 space-y-2">
+            <div class="flex items-center space-x-2">
+              <span class="bg-gray-100 px-3 py-1 rounded-lg text-lg font-mono flex-grow text-center">{{ password.totp30 }}</span>
+              <button @click="copyToClipboard(password.totp30)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100">
                 <CopyIcon size="20" />
               </button>
             </div>
-
-            <div v-if="password.totpSecret" class="mt-2 flex items-center space-x-2">
-              <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ password.totp30 }}</span>
-              <button @click="copyToClipboard(password.totp30)" class="text-blue-500 hover:text-blue-700">
-                <CopyIcon size="20" />
-              </button>
-
-              <span class="bg-gray-200 px-3 py-1 rounded text-lg font-mono">{{ password.totp60 }}</span>
-              <button @click="copyToClipboard(password.totp60)" class="text-blue-500 hover:text-blue-700">
+            <div class="flex items-center space-x-2">
+              <span class="bg-gray-100 px-3 py-1 rounded-lg text-lg font-mono flex-grow text-center">{{ password.totp60 }}</span>
+              <button @click="copyToClipboard(password.totp60)" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100">
                 <CopyIcon size="20" />
               </button>
             </div>
           </div>
-
-          <button @click="removePassword(password.id)" class="text-red-500 hover:text-red-700 p-1">
-            <TrashIcon size="20" />
-          </button>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
 
     <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2">
-      <button @click="prevPage" :disabled="currentPage === 1" class="p-2 rounded-full bg-gray-200 disabled:opacity-50">
-        <ChevronLeftIcon size="20" />
+      <button @click="prevPage" :disabled="currentPage === 1" class="p-2 rounded-full bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors">
+        <ChevronLeftIcon size="24" />
       </button>
-      <span v-for="page in totalPages" :key="page" @click="goToPage(page)" class="cursor-pointer px-3 py-1 rounded-full" :class="page === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200'">{{ page }}</span>
-      <button @click="nextPage" :disabled="currentPage === totalPages" class="p-2 rounded-full bg-gray-200 disabled:opacity-50">
-        <ChevronRightIcon size="20" />
+      <span v-for="page in totalPages" :key="page" @click="goToPage(page)" class="cursor-pointer px-4 py-2 rounded-full text-lg font-medium transition-colors" :class="page === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'">
+        {{ page }}
+      </span>
+      <button @click="nextPage" :disabled="currentPage === totalPages" class="p-2 rounded-full bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors">
+        <ChevronRightIcon size="24" />
       </button>
     </div>
 
-    <p v-if="filteredPasswords.length === 0" class="text-center text-gray-500 mt-4">No passwords found matching your search.</p>
+    <p v-if="filteredPasswords.length === 0" class="text-center text-gray-500 mt-8 text-lg">No passwords found matching your search.</p>
   </div>
-</template>
+</template>       
 
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { db, encryptContent, decryptContent } from "@/db";
-import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeOffIcon, CopyIcon, TrashIcon } from "lucide-vue-next";
+import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeOffIcon, CopyIcon, TrashIcon, PlusIcon} from "lucide-vue-next";
 import { sha256 } from "js-sha256";
 import { TOTP, Secret } from "otpauth";
 
