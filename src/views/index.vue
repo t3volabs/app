@@ -5,7 +5,8 @@
       <StatCard title="Bookmarks" :count="savedBookmarks" icon="BookmarkIcon" color="green" />
       <StatCard title="Notes" :count="savedNotes" icon="FileTextIcon" color="orange" />
     </div>
-    <PasswordSuggester />
+    <PasswordSuggester />        <RecentActivityLog />
+
   </div>
 </template>
 
@@ -15,6 +16,7 @@ import { db } from "@/db";
 import { KeyIcon, BookmarkIcon, FileTextIcon } from "lucide-vue-next";
 import StatCard from "@/components/StatCard.vue";
 import PasswordSuggester from "@/components/PasswordSuggester.vue";
+import RecentActivityLog from "@/components/RecentActivityLog.vue";
 
 const savedPasswords = ref(0);
 const savedBookmarks = ref(0);
