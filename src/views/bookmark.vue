@@ -1,8 +1,13 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { decryptContent, encryptContent, db } from "@/db.js";
-import { SearchIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-vue-next";
+import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from "lucide-vue-next";
 import { sha256 } from "js-sha256";
+
+const getRandomPastelColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 100%, 98%)`;
+};
 
 async function pushToBookmarks(title, url, note) {
   await db.bookmarks.add({
@@ -91,51 +96,59 @@ watch(
 onMounted(loadBookmarks);
 </script>
 
+
+
+
+
+
+
 <template>
-  <div class="max-w-2xl mx-auto p-4">
-    <div class="mb-6 p-4 border rounded-lg bg-gray-50 shadow">
-      <input v-model="newBookmark.title" placeholder="Title" class="w-full p-2 mb-2 border rounded" />
-      <input v-model="newBookmark.url" placeholder="URL" class="w-full p-2 mb-2 border rounded" />
-      <textarea v-model="newBookmark.note" placeholder="note" class="w-full p-2 mb-2 border rounded" rows="3"></textarea>
-      <button @click="addBookmark" class="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-600 transition-colors">Add Bookmark</button>
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+      <h2 class="text-2xl font-bold mb-4">Add New Bookmark</h2>
+      <input v-model="newBookmark.title" placeholder="Title" class="w-full p-3 mb-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      <input v-model="newBookmark.url" placeholder="URL" class="w-full p-3 mb-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      <textarea v-model="newBookmark.note" placeholder="Note" class="w-full p-3 mb-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="3"></textarea>
+      <button @click="addBookmark" class="bg-blue-500 text-white px-6 py-3 rounded-lg w-full hover:bg-blue-600 transition-colors flex items-center justify-center">
+        <PlusIcon class="mr-2" size="20" />
+        Add Bookmark
+      </button>
     </div>
 
-    <div class="mb-4 relative">
-      <input v-model="searchQuery" placeholder="Search bookmarks..." class="w-full p-2 pl-10 border rounded-lg" />
-      <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size="20" />
+    <div class="mb-6 relative">
+      <input v-model="searchQuery" placeholder="Search bookmarks..." class="w-full p-4 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      <SearchIcon class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size="24" />
     </div>
 
-    <ul class="space-y-4 mb-4">
-      <li v-for="bookmark in paginatedBookmarks" :key="bookmark.id" class="p-4 border rounded-lg bg-white shadow hover:shadow-md transition-shadow">
-        <div class="flex justify-between items-center">
-          <div class="flex-grow">
-            <a :href="bookmark.url" target="_blank" class="text-blue-600 hover:underline">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div v-for="bookmark in paginatedBookmarks" :key="bookmark.id" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300" :style="{ backgroundColor: getRandomPastelColor() }">
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <a :href="bookmark.url" target="_blank" class="text-xl font-semibold text-blue-600 hover:underline break-words">
               {{ bookmark.title || bookmark.url }}
             </a>
-            <p class="text-sm text-gray-500 truncate">{{ bookmark.url }}</p>
-            <p class="text-sm text-gray-500">{{ bookmark.note }}</p>
+            <button @click="removeBookmark(bookmark.id)" class="text-gray-500 hover:text-red-500 p-1 rounded-full hover:bg-red-100 transition-colors">
+              <XIcon size="20" />
+            </button>
           </div>
-          <button @click="removeBookmark(bookmark.id)" class="text-red-500 hover:text-red-700 p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <p class="text-sm text-gray-600 mb-2 break-words">{{ bookmark.url }}</p>
+          <p class="text-sm text-gray-700 break-words">{{ bookmark.note }}</p>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
 
     <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2">
-      <button @click="prevPage" :disabled="currentPage === 1" class="p-2 rounded-full bg-gray-200 disabled:opacity-50">
-        <ChevronLeftIcon size="20" />
+      <button @click="prevPage" :disabled="currentPage === 1" class="p-2 rounded-full bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors">
+        <ChevronLeftIcon size="24" />
       </button>
-      <span v-for="page in totalPages" :key="page" @click="goToPage(page)" class="cursor-pointer px-3 py-1 rounded-full" :class="page === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200'">
+      <span v-for="page in totalPages" :key="page" @click="goToPage(page)" class="cursor-pointer px-4 py-2 rounded-full text-lg font-medium transition-colors" :class="page === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'">
         {{ page }}
       </span>
-      <button @click="nextPage" :disabled="currentPage === totalPages" class="p-2 rounded-full bg-gray-200 disabled:opacity-50">
-        <ChevronRightIcon size="20" />
+      <button @click="nextPage" :disabled="currentPage === totalPages" class="p-2 rounded-full bg-gray-200 disabled:opacity-50 hover:bg-gray-300 transition-colors">
+        <ChevronRightIcon size="24" />
       </button>
     </div>
 
-    <p v-if="filteredBookmarks.length === 0" class="text-center text-gray-500 mt-4">No bookmarks found matching your search.</p>
+    <p v-if="filteredBookmarks.length === 0" class="text-center text-gray-500 mt-8 text-lg">No bookmarks found matching your search.</p>
   </div>
 </template>
