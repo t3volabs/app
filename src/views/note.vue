@@ -89,7 +89,7 @@ const newNote = ref({ title: "", content: "" });
 const notes = ref([]); // Stores all notes
 const searchQuery = ref("");
 const currentPage = ref(1);
-const itemsPerPage = 6;
+const itemsPerPage = 4;
 
 // Load all notes from IndexedDB
 const loadNotes = async () => {
