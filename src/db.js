@@ -6,7 +6,7 @@ export const db = new Dexie("T3VO");
 db.version(1).stores({
   notes: "id, title, content, tags, updated_at",
   bookmarks: "id, title, note, url, updated_at",
-  passwords: "id, title, username, email, password, urls, updated_at",
+  passwords: "id, title, username, email, password, totpSecret, urls, updated_at",
 });
 
 export function encryptContent(content) {
