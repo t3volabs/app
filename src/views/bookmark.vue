@@ -2,9 +2,11 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { decryptContent, encryptContent, db } from "@/db.js";
 import { SearchIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-vue-next";
+import { sha256 } from "js-sha256";
 
 async function pushToBookmarks(title, url, note) {
   await db.bookmarks.add({
+    id: sha256(url + title + note),
     title: encryptContent(title),
     url: encryptContent(url),
     note: encryptContent(note),

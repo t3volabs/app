@@ -2,9 +2,11 @@
 import { ref, onMounted, computed } from "vue";
 import { encryptContent, db, decryptContent } from "@/db";
 import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "lucide-vue-next";
+import { sha256 } from "js-sha256";
 
 async function pushToNotes(title, content, tags) {
   await db.notes.add({
+    id: sha256(title + content),
     title: encryptContent(title),
     content: encryptContent(content),
     tags,

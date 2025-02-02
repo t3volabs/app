@@ -2,9 +2,11 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { db, encryptContent, decryptContent } from "@/db";
 import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeOffIcon, CopyIcon, TrashIcon } from "lucide-vue-next";
+import { sha256 } from "js-sha256";
 
 async function pushToPasswords(title, username, email, password, TOPT, urls) {
   await db.passwords.add({
+    id: sha256(title + username + email + password + urls),
     title,
     username: encryptContent(username),
     email: encryptContent(email),
@@ -92,17 +94,20 @@ const prevPage = () => {
 const extractDomain = (url) => {
   try {
     const { hostname } = new URL(url);
-    return hostname.replace('www.', '');
+    return hostname.replace("www.", "");
   } catch (e) {
-    return '';
+    return "";
   }
 };
 
-watch(() => newPassword.value.urls, (newVal) => {
-  if (newVal) {
-    newPassword.value.title = extractDomain(newVal);
+watch(
+  () => newPassword.value.urls,
+  (newVal) => {
+    if (newVal) {
+      newPassword.value.title = extractDomain(newVal);
+    }
   }
-});
+);
 
 onMounted(loadPasswords);
 </script>
