@@ -70,6 +70,7 @@ const unlockApp = () => {
     error.value = "";
   } else {
     error.value = "Incorrect master password. Please try again.";
+    passwordInput.value = "";
   }
 };
 
