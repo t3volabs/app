@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gradient-to-br from-blue-200 to-red-200 flex items-center justify-center p-4">
-    <div class="m-auto container bg-white bg-opacity-40 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden flex">
+    <div class="bg-white bg-opacity-40 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden flex">
       <div v-if="!encryptionKeySet" class="w-full p-12 text-center">
         <h1 class="text-4xl font-semibold text-gray-800 mb-8">Set Master Password</h1>
         <input v-model="passwordInput" type="password" placeholder="Set Master Password" class="w-full max-w-md mx-auto p-4 text-lg border-0 rounded-lg bg-white bg-opacity-50 focus:bg-opacity-70 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200" />
