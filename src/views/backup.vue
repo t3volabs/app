@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center justify-center p-4">
-    <div class="w-full max-w-4xl bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl shadow-lg p-8 space-y-8 transition-all duration-300 ease-in-out hover:shadow-xl">
+    <div class="w-full">
       <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Sync & Backup</h1>
 
       <div class="space-y-6">
