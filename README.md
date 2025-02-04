@@ -18,7 +18,7 @@ It **syncs data trustlessly** across devices with **no installation required** a
 
 [![T3VO](https://github.com/user-attachments/assets/6eabf7d9-f2c0-4199-8086-20fd4ad3735d)](https://app.t3vo.com)
 
-🔗 **Try the stable release here:** [https://app.t3vo.com](https://app.t3vo.com)
+🔗 **Stable Release :** [https://app.t3vo.com](https://app.t3vo.com)
 
 ---
 
