@@ -4,6 +4,8 @@ import BookMark from "../views/bookmark.vue";
 import PassWord from "../views/password.vue";
 import Note from "../views/note.vue";
 import Backup from "../views/backup.vue";
+import Import from "../views/import.vue";
+
 import About from "../views/about.vue";
 
 const router = createRouter({
@@ -38,6 +40,11 @@ const router = createRouter({
       path: "/about",
       name: "about",
       component: About,
+    },
+    {
+      path: "/import",
+      name: "import",
+      component: Import,
     },
   ],
 });

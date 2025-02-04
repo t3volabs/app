@@ -24,7 +24,6 @@ async function getBookmarks(page) {
     .orderBy("updated_at")
     .reverse()
     .offset(page * 10)
-    .limit(10)
     .toArray();
 
   return bookmarks.map((bookmark) => ({
@@ -38,7 +37,7 @@ async function getBookmarks(page) {
 const newBookmark = ref({ title: "", url: "", note: "" });
 const searchQuery = ref("");
 const currentPage = ref(1);
-const itemsPerPage = 6;
+const itemsPerPage = 9;
 const bookmarks = ref([]);
 
 const loadBookmarks = async () => {

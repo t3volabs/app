@@ -38,7 +38,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter, RouterView, RouterLink } from "vue-router";
-import { Home, Bookmark, Key, FileText, Pickaxe, RefreshCw } from "lucide-vue-next";
+import { Home, Bookmark, Key, FileText, Pickaxe, RefreshCw , Import} from "lucide-vue-next";
 import { sha256 } from "js-sha256";
 
 const encryptionKeySet = ref(!!localStorage.getItem("ENCRYPTION_KEY_HASH"));
@@ -79,6 +79,7 @@ const navItems = [
   { name: "Bookmark", icon: Bookmark, to: "/bookmark" },
   { name: "Password", icon: Key, to: "/password" },
   { name: "Note", icon: FileText, to: "/note" },
+  { name: "Import", icon: Import, to: "/import" },
   { name: "Backup", icon: RefreshCw, to: "/backup" },
   { name: "About", icon: Pickaxe, to: "/about" },
 ];
