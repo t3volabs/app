@@ -28,8 +28,6 @@ Want to self-host? Deploy T3VO instantly on your preferred platform:
 
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/project?template=https://github.com/t3volabs/app)  
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/t3volabs/app)  
-[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new/template?repo=https://github.com/t3volabs/app)  
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://dashboard.render.com/new/srv?repo=https://github.com/t3volabs/app)  
 [![Deploy to Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/t3volabs/app)
-
 ---
