@@ -29,7 +29,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { Home, Bookmark, Key, FileText, Pickaxe, RefreshCw, Import } from "lucide-vue-next";
+import { Home, Bookmark, Key, FileText, Code, RefreshCw, Import } from "lucide-vue-next";
 
 const isUnlocked = ref(false);
 const passwordInput = ref("");
@@ -54,7 +54,7 @@ const navItems = [
   { name: "Note", icon: FileText, to: "/note" },
   { name: "Import", icon: Import, to: "/import" },
   { name: "Backup", icon: RefreshCw, to: "/backup" },
-  { name: "About", icon: Pickaxe, to: "/about" },
+  { name: "About", icon: Code, to: "/about" },
 ];
 </script>
 
