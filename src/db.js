@@ -9,6 +9,7 @@ if (!ENCRYPTION_KEY) {
 }
 
 const hashedKey = ENCRYPTION_KEY ? sha256(ENCRYPTION_KEY) : null;
+
 export const dbname = `T3VO-${hashedKey}`;
 
 export const db = new Dexie(dbname);
