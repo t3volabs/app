@@ -3,6 +3,10 @@
 T3VO is a **secure, encrypted, offline-first** app for managing **passwords, bookmarks, and notes**.  
 It **syncs data trustlessly** across devices with **no installation required** and works entirely in your browser.
 
+🔗 **Stable Release :** [https://app.t3vo.com](https://app.t3vo.com)
+🔗 **Dev Release :** [https://t3vo.on-fleek.app](https://t3vo.on-fleek.app)
+
+
 - **🚀 Built with Pure JavaScript** – No backend, no tracking. Everything runs client-side.
 - **⚡ Fast, Free & Feature-Rich** – Store unlimited data with **no paywalls or subscriptions**.
 - **🔐 End-to-End Encryption** – Only you can access your data—it's fully encrypted for your privacy.
@@ -18,7 +22,6 @@ It **syncs data trustlessly** across devices with **no installation required** a
 
 [![T3VO](https://github.com/user-attachments/assets/6eabf7d9-f2c0-4199-8086-20fd4ad3735d)](https://app.t3vo.com)
 
-🔗 **Stable Release :** [https://app.t3vo.com](https://app.t3vo.com)
 
 ---
 
