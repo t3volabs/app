@@ -95,12 +95,6 @@ watch(
 onMounted(loadBookmarks);
 </script>
 
-
-
-
-
-
-
 <template>
   <div class="max-w-6xl mx-auto p-6">
     <div class="mb-8 p-6 bg-white rounded-xl shadow-lg">
