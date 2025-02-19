@@ -15,8 +15,8 @@
     <div class="p-4">
       <h2 class="text-xl font-semibold text-gray-800 mb-4">Activity Dashboard</h2>
 
-      <div class="grid grid-cols-3 gap-4">
-        <div class="col-span-2 space-y-4">
+      <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
+        <div class="space-y-4">
           <div class="p-3 rounded-md h-[300px]">
             <Pie :data="activityTypeData" :options="pieChartOptions" />
           </div>
@@ -25,7 +25,7 @@
           </div>
         </div>
 
-        <div class="col-span-1">
+        <div class="">
           <h3 class="text-lg font-semibold text-gray-700 mb-2">Recent Activities</h3>
           <ul class="space-y-2 max-h-[600px] overflow-y-auto">
             <li v-for="activity in recentActivities" :key="activity.id" class="flex items-center text-sm">
@@ -54,12 +54,7 @@
           <GithubIcon class="h-5 w-5 mr-2" />
           View on GitHub
         </a>
-        <a 
-          href="https://github.com/t3volabs/issues" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          class="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-        >
+        <a href="https://github.com/t3volabs/issues" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
           <AlertCircleIcon class="h-5 w-5 mr-2" />
           Report an Issue
         </a>
@@ -89,6 +84,7 @@ const stats = computed(() => [
   { title: "Passwords", count: String(savedPasswords.value) },
   { title: "Bookmarks", count: String(savedBookmarks.value) },
   { title: "Notes", count: String(savedNotes.value) },
+
 ]);
 
 const loadData = async () => {
