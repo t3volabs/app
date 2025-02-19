@@ -1,10 +1,10 @@
 <template>
   <div class="p-12">
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-      <StatCard title="Version" :count="version" />
-      <StatCard title="Passwords" :count="savedPasswords" />
-      <StatCard title="Bookmarks" :count="savedBookmarks" />
-      <StatCard title="Notes" :count="savedNotes" />
+      <StatCard title="Version" :count="String(version)" />
+      <StatCard title="Passwords" :count="String(savedPasswords)" />
+      <StatCard title="Bookmarks" :count="String(savedBookmarks)" />
+      <StatCard title="Notes" :count="String(savedNotes)" />
     </div>
 
     <RecentActivityLog />
