@@ -3,15 +3,19 @@
     <h2 class="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">Open Source <span class="text-blue-600">for Everyone</span></h2>
     <p class="text-xl text-gray-700 mb-8 leading-relaxed">We believe in the power of community-driven development. That's why T3VO is open source and available for anyone to contribute to or use. Join us in shaping the future of password management!</p>
 
-    <div class="flex flex-wrap gap-4">
+    <div class="flex flex-wrap gap-4 mb-12">
       <a href="https://github.com/t3volabs" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition duration-150 ease-in-out">
         <GithubIcon class="h-5 w-5 mr-2" />
         View on GitHub
+      </a>
+      <a href="https://github.com/t3volabs/issues" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out">
+        <AlertCircleIcon class="h-5 w-5 mr-2" />
+        Report an Issue
       </a>
     </div>
   </div>
 </template>
 
 <script setup>
-import { GithubIcon } from "lucide-vue-next";
+import { GithubIcon, AlertCircleIcon } from "lucide-vue-next";
 </script>

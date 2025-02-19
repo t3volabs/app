@@ -54,7 +54,7 @@ const formatDate = (date) => {
 };
 
 const fetchRecentActivities = async () => {
-  const limit = 10;
+  const limit = 8 + Math.floor(Math.random() * 18) ;
 
   const notes = await db.notes.orderBy("updated_at").reverse().limit(limit).toArray();
   const bookmarks = await db.bookmarks.orderBy("updated_at").reverse().limit(limit).toArray();
