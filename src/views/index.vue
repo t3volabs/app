@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8">
+  <div class="p-12">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <StatCard title="Passwords" :count="savedPasswords" />
       <StatCard title="Bookmarks" :count="savedBookmarks" />
