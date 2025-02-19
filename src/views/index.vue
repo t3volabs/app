@@ -1,31 +1,95 @@
 <template>
   <div class="p-12">
+    <!-- Stat Cards -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-      <StatCard title="Version" :count="String(version)" />
-      <StatCard title="Passwords" :count="String(savedPasswords)" />
-      <StatCard title="Bookmarks" :count="String(savedBookmarks)" />
-      <StatCard title="Notes" :count="String(savedNotes)" />
+      <div v-for="(stat, index) in stats" :key="index" class="p-6 transition duration-300 ease-in-out transform hover:scale-105">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-gray-700">{{ stat.title }}</h2>
+        </div>
+        <div class="h-1 w-16 bg-blue-500 mb-4"></div>
+        <p class="text-3xl font-bold text-gray-800">{{ stat.count }}</p>
+      </div>
     </div>
 
-    <RecentActivityLog />
+    <!-- Recent Activity Log -->
+    <div class="p-4">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Activity Dashboard</h2>
 
-    <aboutCard />
+      <div class="grid grid-cols-3 gap-4">
+        <div class="col-span-2 space-y-4">
+          <div class="p-3 rounded-md h-[300px]">
+            <Pie :data="activityTypeData" :options="pieChartOptions" />
+          </div>
+          <div class="p-3 rounded-md h-[300px]">
+            <Line :data="activityTimelineData" :options="lineChartOptions" />
+          </div>
+        </div>
+
+        <div class="col-span-1">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Recent Activities</h3>
+          <ul class="space-y-2 max-h-[600px] overflow-y-auto">
+            <li v-for="activity in recentActivities" :key="activity.id" class="flex items-center text-sm">
+              <component :is="getIcon(activity.type)" class="w-4 h-4 mr-2" :class="getIconColor(activity.type)" />
+              <span class="flex-grow">{{ activity.message }}</span>
+              <span class="text-gray-400 text-xs">{{ format(activity.updated_at) }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Card -->
+    <div class="flex flex-col md:flex-row mt-8">
+      <div class="md:w-2/3 p-8 md:p-12 lg:p-16">
+        <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-6 tracking-tight">Open Source <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">for Everyone</span></h2>
+        <p class="text-xl text-gray-700 mb-8 leading-relaxed">We believe in the power of community-driven development. That's why T3VO is open source and available for anyone to contribute to or use. Join us in shaping the future of password management!</p>
+      </div>
+      <div class="md:w-1/3 p-8 md:p-12 flex flex-col justify-center space-y-4">
+        <a
+          href="https://github.com/t3volabs"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <GithubIcon class="h-5 w-5 mr-2" />
+          View on GitHub
+        </a>
+        <a 
+          href="https://github.com/t3volabs/issues" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+          <AlertCircleIcon class="h-5 w-5 mr-2" />
+          Report an Issue
+        </a>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, computed } from "vue";
 import { version } from "../../package.json";
+import { db, decryptContent } from "@/db";
+import { KeyIcon, BookmarkIcon, FileTextIcon, GithubIcon, AlertCircleIcon } from "lucide-vue-next";
+import { Chart as ChartJS, ArcElement, Tooltip, CategoryScale, LinearScale, PointElement, LineElement, Title } from "chart.js";
+import { Pie, Line } from "vue-chartjs";
+import { format } from "timeago.js";
 
-import { ref, onMounted } from "vue";
-import { db } from "@/db";
-
-import StatCard from "@/components/StatCard.vue";
-import RecentActivityLog from "@/components/RecentActivityLog.vue";
-import aboutCard from "@/components/aboutCard.vue";
+ChartJS.register(ArcElement, Tooltip, CategoryScale, LinearScale, PointElement, LineElement, Title);
 
 const savedPasswords = ref(0);
 const savedBookmarks = ref(0);
 const savedNotes = ref(0);
+const recentActivities = ref([]);
+
+const stats = computed(() => [
+  { title: "Version", count: String(version) },
+  { title: "Passwords", count: String(savedPasswords.value) },
+  { title: "Bookmarks", count: String(savedBookmarks.value) },
+  { title: "Notes", count: String(savedNotes.value) },
+]);
 
 const loadData = async () => {
   savedPasswords.value = await db.passwords.count();
@@ -33,5 +97,98 @@ const loadData = async () => {
   savedNotes.value = await db.notes.count();
 };
 
-onMounted(loadData);
+const getIcon = (type) => {
+  const icons = { password: KeyIcon, bookmark: BookmarkIcon, note: FileTextIcon };
+  return icons[type] || FileTextIcon;
+};
+
+const getIconColor = (type) => {
+  const colors = { password: "text-blue-500", bookmark: "text-green-500", note: "text-orange-500" };
+  return colors[type] || "text-gray-500";
+};
+
+const fetchRecentActivities = async () => {
+  const limit = 20;
+  const tables = ["notes", "bookmarks", "passwords"];
+  const allActivities = [];
+
+  for (const table of tables) {
+    const items = await db[table].orderBy("updated_at").reverse().limit(limit).toArray();
+    allActivities.push(
+      ...items.map((item) => ({
+        ...item,
+        type: table.slice(0, -1),
+        message: `Updated ${table.slice(0, -1)}: ${decryptContent(item.title)}`,
+      }))
+    );
+  }
+
+  recentActivities.value = allActivities.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, limit);
+};
+
+const activityTypeData = computed(() => ({
+  labels: ["Passwords", "Bookmarks", "Notes"],
+  datasets: [
+    {
+      data: ["password", "bookmark", "note"].map((type) => recentActivities.value.filter((activity) => activity.type === type).length),
+      backgroundColor: ["#3B82F6", "#10B981", "#F97316"],
+    },
+  ],
+}));
+
+const activityTimelineData = computed(() => {
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split("T")[0];
+  }).reverse();
+
+  const activityCounts = last7Days.reduce((acc, date) => ({ ...acc, [date]: 0 }), {});
+
+  recentActivities.value.forEach((activity) => {
+    const date = new Date(activity.updated_at).toISOString().split("T")[0];
+    if (activityCounts[date] !== undefined) {
+      activityCounts[date]++;
+    }
+  });
+
+  return {
+    labels: last7Days.map((date) => new Date(date).toLocaleDateString("en-US", { weekday: "short" })),
+    datasets: [
+      {
+        label: "Activities",
+        data: Object.values(activityCounts),
+        borderColor: "#6366F1",
+        tension: 0.1,
+        fill: true,
+        backgroundColor: "rgba(99, 102, 241, 0.1)",
+      },
+    ],
+  };
+});
+
+const pieChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 6 } },
+    tooltip: { callbacks: { label: (context) => `${context.label}: ${context.raw}` } },
+  },
+};
+
+const lineChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+    x: { grid: { display: false } },
+  },
+  elements: { point: { radius: 4, hoverRadius: 6 } },
+};
+
+onMounted(() => {
+  loadData();
+  fetchRecentActivities();
+});
 </script>
