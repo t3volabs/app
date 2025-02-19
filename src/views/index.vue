@@ -1,11 +1,14 @@
 <template>
-  <div class="p-4">
+  <div class="p-8">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <StatCard title="Passwords" :count="savedPasswords"  />
-      <StatCard title="Bookmarks" :count="savedBookmarks"  />
-      <StatCard title="Notes" :count="savedNotes"  />
+      <StatCard title="Passwords" :count="savedPasswords" />
+      <StatCard title="Bookmarks" :count="savedBookmarks" />
+      <StatCard title="Notes" :count="savedNotes" />
     </div>
-<RecentActivityLog />
+
+    <RecentActivityLog />
+
+    <aboutCard />
   </div>
 </template>
 
@@ -15,6 +18,7 @@ import { db } from "@/db";
 
 import StatCard from "@/components/StatCard.vue";
 import RecentActivityLog from "@/components/RecentActivityLog.vue";
+import aboutCard from "@/components/aboutCard.vue";
 
 const savedPasswords = ref(0);
 const savedBookmarks = ref(0);

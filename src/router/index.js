@@ -6,8 +6,6 @@ import Note from "../views/note.vue";
 import Backup from "../views/backup.vue";
 import Import from "../views/import.vue";
 
-import About from "../views/about.vue";
-
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -35,11 +33,6 @@ const router = createRouter({
       path: "/backup",
       name: "backup",
       component: Backup,
-    },
-    {
-      path: "/about",
-      name: "about",
-      component: About,
     },
     {
       path: "/import",

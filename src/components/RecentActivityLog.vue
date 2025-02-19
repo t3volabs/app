@@ -1,6 +1,6 @@
 <template>
-  <div class="rounded-lg shadow-md p-6 mt-6">
-    <h2 class="text-xl font-semibold text-gray-700 mb-4">Recent Activity</h2>
+  <div class="p-6 mt-6">
+    <h2 class="text-2xl font-bold text-gray-700 mb-4">Recent Activity</h2>
     <ul class="space-y-2">
       <li v-for="activity in recentActivities" :key="activity.id" class="flex items-center text-sm">
         <component :is="getIcon(activity.type)" class="w-4 h-4 mr-2" :class="getIconColor(activity.type)" />
