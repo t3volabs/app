@@ -6,7 +6,6 @@ It **syncs data trustlessly** across devices with **no installation required** a
 🔗 **Stable Release :** [https://app.t3vo.com](https://app.t3vo.com)
 🔗 **Dev Release :** [https://t3vo.on-fleek.app](https://t3vo.on-fleek.app)
 
-
 - **🚀 Built with Pure JavaScript** – No backend, no tracking. Everything runs client-side.
 - **⚡ Fast, Free & Feature-Rich** – Store unlimited data with **no paywalls or subscriptions**.
 - **🔐 End-to-End Encryption** – Only you can access your data—it's fully encrypted for your privacy.
@@ -21,16 +20,3 @@ It **syncs data trustlessly** across devices with **no installation required** a
 ## 🎯 Live Demo
 
 [![T3VO](https://github.com/user-attachments/assets/6eabf7d9-f2c0-4199-8086-20fd4ad3735d)](https://app.t3vo.com)
-
-
----
-
-## 🚀 Deploy Your Own Instance
-
-Want to self-host? Deploy T3VO instantly on your preferred platform:
-
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/project?template=https://github.com/t3volabs/app)  
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/t3volabs/app)  
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://dashboard.render.com/new/srv?repo=https://github.com/t3volabs/app)  
-[![Deploy to Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/t3volabs/app)
----
