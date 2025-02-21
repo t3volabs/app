@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { decryptContent, encryptContent, db } from "@/db.js";
-import { Search, Plus, X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-vue-next";
+import { Search, Plus, X, ExternalLink, ChevronLeft, ChevronRight, FileText } from "lucide-vue-next";
 import { sha256 } from "js-sha256";
 
 const newBookmark = ref({ title: "", url: "", note: "" });
@@ -64,10 +64,7 @@ const removeBookmark = async (id) => {
 const filteredBookmarks = computed(() => {
   if (!searchQuery.value) return bookmarks.value;
   const query = searchQuery.value.toLowerCase();
-  return bookmarks.value.filter((bookmark) => 
-    (bookmark.title && bookmark.title.toLowerCase().includes(query)) || 
-    bookmark.url.toLowerCase().includes(query)
-  );
+  return bookmarks.value.filter((bookmark) => (bookmark.title && bookmark.title.toLowerCase().includes(query)) || bookmark.url.toLowerCase().includes(query));
 });
 
 const totalPages = computed(() => Math.ceil(filteredBookmarks.value.length / itemsPerPage));
@@ -110,21 +107,17 @@ onMounted(loadBookmarks);
 <template>
   <div class="min-h-screen bg-gray-100 p-8">
     <div class="max-w-6xl mx-auto">
-      <h1 class="text-4xl font-bold mb-8 text-gray-800">Bookmarks</h1>
-      
+
+      <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center">
+        <FileText class="mr-4" size="36" />
+        Bookmarks      </h1>
+
       <div class="mb-8 flex items-center justify-between">
         <div class="relative flex-grow mr-4">
-          <input 
-            v-model="searchQuery" 
-            placeholder="Search bookmarks..." 
-            class="w-full pl-10 pr-4 py-2 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
-          />
+          <input v-model="searchQuery" placeholder="Search bookmarks..." class="w-full pl-10 pr-4 py-2 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:outline-none transition-colors" />
           <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size="20" />
         </div>
-        <button 
-          @click="showAddForm = !showAddForm" 
-          class="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600 transition-colors flex items-center"
-        >
+        <button @click="showAddForm = !showAddForm" class="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600 transition-colors flex items-center">
           <Plus size="20" class="mr-2" />
           Add Bookmark
         </button>
@@ -142,12 +135,7 @@ onMounted(loadBookmarks);
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div 
-          v-for="bookmark in filteredBookmarks" 
-          :key="bookmark.id" 
-          class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-          :style="{ background: getRandomGradient() }"
-        >
+        <div v-for="bookmark in filteredBookmarks" :key="bookmark.id" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1" :style="{ background: getRandomGradient() }">
           <div class="p-6">
             <div class="flex justify-between items-start mb-4">
               <a :href="bookmark.url" target="_blank" class="text-xl font-semibold text-gray-800 hover:text-blue-600 transition-colors break-words flex items-center">
