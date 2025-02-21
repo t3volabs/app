@@ -7,14 +7,15 @@ import { sha256 } from "js-sha256";
 const newBookmark = ref({ title: "", url: "", note: "" });
 const searchQuery = ref("");
 const currentPage = ref(1);
-const itemsPerPage = 12;
+const itemsPerPage = 15;
 const bookmarks = ref([]);
+const totalBookmarks = ref(0);
 const showAddForm = ref(false);
 
 const getRandomGradient = () => {
   const hue1 = Math.floor(Math.random() * 360);
   const hue2 = (hue1 + 40) % 360;
-  return `linear-gradient(135deg, hsl(${hue1}, 100%, 85%), hsl(${hue2}, 100%, 85%))`;
+  return `linear-gradient(135deg, hsl(${hue1}, 40%, 90%), hsl(${hue2}, 30%, 100%))`;
 };
 
 async function pushToBookmarks(title, url, note) {
@@ -27,15 +28,19 @@ async function pushToBookmarks(title, url, note) {
   });
 }
 
-async function getBookmarks(page) {
-  const bookmarks = await db.bookmarks
-    .orderBy("updated_at")
-    .reverse()
-    .offset(page * itemsPerPage)
-    .limit(itemsPerPage)
-    .toArray();
+async function getBookmarks(page, isSearching = false) {
+  let bookmarksQuery = db.bookmarks.orderBy("updated_at").reverse();
 
-  return bookmarks.map((bookmark) => ({
+  if (!isSearching) {
+    const offset = (page - 1) * itemsPerPage;
+    bookmarksQuery = bookmarksQuery.offset(offset).limit(itemsPerPage);
+  }
+
+  const fetchedBookmarks = await bookmarksQuery.toArray();
+
+  totalBookmarks.value = await db.bookmarks.count();
+
+  return fetchedBookmarks.map((bookmark) => ({
     ...bookmark,
     title: decryptContent(bookmark.title),
     url: decryptContent(bookmark.url),
@@ -44,7 +49,7 @@ async function getBookmarks(page) {
 }
 
 const loadBookmarks = async () => {
-  bookmarks.value = await getBookmarks(currentPage.value - 1);
+  bookmarks.value = await getBookmarks(currentPage.value, !!searchQuery.value);
 };
 
 const addBookmark = async () => {
@@ -64,10 +69,16 @@ const removeBookmark = async (id) => {
 const filteredBookmarks = computed(() => {
   if (!searchQuery.value) return bookmarks.value;
   const query = searchQuery.value.toLowerCase();
-  return bookmarks.value.filter((bookmark) => (bookmark.title && bookmark.title.toLowerCase().includes(query)) || bookmark.url.toLowerCase().includes(query));
+  return bookmarks.value.filter((bookmark) => 
+    (bookmark.title && bookmark.title.toLowerCase().includes(query)) || 
+    bookmark.url.toLowerCase().includes(query)
+  );
 });
 
-const totalPages = computed(() => Math.ceil(filteredBookmarks.value.length / itemsPerPage));
+const totalPages = computed(() => {
+  if (searchQuery.value) return 1;
+  return Math.ceil(totalBookmarks.value / itemsPerPage);
+});
 
 const nextPage = async () => {
   if (currentPage.value < totalPages.value) {
@@ -101,12 +112,17 @@ watch(
   }
 );
 
+watch(searchQuery, async () => {
+  currentPage.value = 1;
+  await loadBookmarks();
+});
+
 onMounted(loadBookmarks);
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-100 p-8">
-    <div class="max-w-6xl mx-auto">
+    <div class="container m-auto">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center">
         <FileText class="mr-4" size="36" />
         Bookmarks
@@ -140,19 +156,18 @@ onMounted(loadBookmarks);
             <div class="flex justify-between items-start mb-4">
               <a :href="bookmark.url" target="_blank" class="text-xl font-semibold text-gray-800 hover:text-blue-600 transition-colors break-words flex items-center">
                 {{ bookmark.title || extractDomain(bookmark.url) }}
-                <ExternalLink size="16" class="ml-2" />
               </a>
               <button @click="removeBookmark(bookmark.id)" class="text-gray-500 hover:text-red-500 p-1 rounded-full hover:bg-red-100 transition-colors">
                 <X size="20" />
               </button>
             </div>
             <p class="text-sm text-gray-600 mb-2 break-words">{{ bookmark.url }}</p>
-            <p v-if="bookmark.note" class="text-sm text-gray-700 break-words mt-2 bg-white bg-opacity-50 p-2 rounded">{{ bookmark.note }}</p>
+            <p v-if="bookmark.note" class="text-sm break-words mt-2 bg-opacity-50 p-2 rounded">{{ bookmark.note }}</p>
           </div>
         </div>
       </div>
 
-      <div v-if="totalPages > 1" class="flex justify-center items-center space-x-4">
+      <div v-if="totalPages > 1 && !searchQuery" class="flex justify-center items-center space-x-4">
         <button @click="prevPage" :disabled="currentPage === 1" class="p-2 rounded-full bg-white shadow disabled:opacity-50 hover:bg-gray-100 transition-colors">
           <ChevronLeft size="24" />
         </button>

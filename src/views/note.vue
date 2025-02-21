@@ -34,7 +34,7 @@ const newNote = ref({ title: "", content: "" });
 const notes = ref([]);
 const searchQuery = ref("");
 const currentPage = ref(1);
-const itemsPerPage = 5;
+const itemsPerPage = 6;
 const showAddForm = ref(false);
 
 const loadNotes = async () => {
@@ -115,7 +115,7 @@ onMounted(loadNotes);
 
 <template>
   <div class="min-h-screen bg-gray-100 p-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="m-auto container">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center">
         <FileText class="mr-4" size="36" />
         Notes Manager

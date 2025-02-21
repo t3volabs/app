@@ -57,14 +57,7 @@ const loadPasswords = async () => {
 
 const addPassword = async () => {
   if (newPassword.value.title && newPassword.value.password) {
-    await pushToPasswords(
-      newPassword.value.title,
-      newPassword.value.username,
-      newPassword.value.email,
-      newPassword.value.password,
-      newPassword.value.totpSecret,
-      newPassword.value.urls
-    );
+    await pushToPasswords(newPassword.value.title, newPassword.value.username, newPassword.value.email, newPassword.value.password, newPassword.value.totpSecret, newPassword.value.urls);
     newPassword.value = { title: "", username: "", email: "", password: "", totpSecret: "", urls: "" };
     showAddForm.value = false;
     await loadPasswords();
@@ -94,12 +87,7 @@ const copyToClipboard = (text, field) => {
 const filteredPasswords = computed(() => {
   if (!searchQuery.value) return passwords.value;
   const query = searchQuery.value.toLowerCase();
-  return passwords.value.filter((password) =>
-    password.title.toLowerCase().includes(query) ||
-    password.username.toLowerCase().includes(query) ||
-    password.email.toLowerCase().includes(query) ||
-    password.urls.toLowerCase().includes(query)
-  );
+  return passwords.value.filter((password) => password.title.toLowerCase().includes(query) || password.username.toLowerCase().includes(query) || password.email.toLowerCase().includes(query) || password.urls.toLowerCase().includes(query));
 });
 
 const paginatedPasswords = computed(() => {
@@ -150,7 +138,7 @@ onMounted(loadPasswords);
 
 <template>
   <div class="min-h-screen bg-gray-100 p-8">
-    <div class="max-w-4xl mx-auto">
+    <div class="m-auto container">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center">
         <Lock class="mr-4" size="36" />
         Password Manager
@@ -158,17 +146,10 @@ onMounted(loadPasswords);
 
       <div class="mb-8 flex items-center justify-between">
         <div class="relative flex-grow mr-4">
-          <input 
-            v-model="searchQuery" 
-            placeholder="Search passwords..." 
-            class="w-full pl-10 pr-4 py-2 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
-          />
+          <input v-model="searchQuery" placeholder="Search passwords..." class="w-full pl-10 pr-4 py-2 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:outline-none transition-colors" />
           <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size="20" />
         </div>
-        <button 
-          @click="showAddForm = !showAddForm" 
-          class="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600 transition-colors flex items-center"
-        >
+        <button @click="showAddForm = !showAddForm" class="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600 transition-colors flex items-center">
           <Plus size="20" class="mr-2" />
           Add Password
         </button>
@@ -215,11 +196,7 @@ onMounted(loadPasswords);
       </div>
 
       <div class="space-y-6 mb-8">
-        <div 
-          v-for="password in paginatedPasswords" 
-          :key="password.id" 
-          class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
-        >
+        <div v-for="password in paginatedPasswords" :key="password.id" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
           <div class="p-6">
             <div class="flex justify-between items-start mb-4">
               <h3 class="text-2xl font-semibold text-gray-800">{{ password.title }}</h3>
@@ -240,12 +217,7 @@ onMounted(loadPasswords);
 
             <div class="flex items-center space-x-2 mb-4">
               <div class="relative flex-grow">
-                <input 
-                  :type="password.visible ? 'text' : 'password'" 
-                  :value="password.password" 
-                  class="w-full p-2 pr-20 border rounded-lg bg-gray-50" 
-                  readonly 
-                />
+                <input :type="password.visible ? 'text' : 'password'" :value="password.password" class="w-full p-2 pr-20 border rounded-lg bg-gray-50" readonly />
                 <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
                   <button @click="toggleVisibility(password)" class="text-gray-600 hover:text-gray-800 p-1 rounded-full hover:bg-gray-200 transition-colors">
                     <Eye v-if="!password.visible" size="18" />
