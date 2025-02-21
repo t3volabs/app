@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { Cloud, Database, Check, X, RefreshCw, Key } from "lucide-vue-next";
+import { Cloud, Database, Check, X, RefreshCw, Key, Lock } from "lucide-vue-next";
 import { dbname as DataBaseName, db } from "@/db";
+import CryptoJS from 'crypto-js';
 
 // Create a shim for the global object
 if (typeof global === 'undefined') {
@@ -24,44 +25,61 @@ const lastSyncTime = ref(null);
 const syncProgress = ref(0);
 const isConfigured = ref(false);
 
-const filebaseConfig = ref({
+const s3Config = ref({
   accessKeyId: "",
   secretAccessKey: "",
   bucket: "",
-  endpoint: "https://s3.filebase.com",
+  endpoint: "",
+  region: "",
 });
+
+const cryptoSeed = ref("");
 
 let s3Client;
 
-async function initializeFilebase() {
+async function initializeS3() {
   if (
-    filebaseConfig.value.accessKeyId &&
-    filebaseConfig.value.secretAccessKey &&
-    filebaseConfig.value.bucket
+    s3Config.value.accessKeyId &&
+    s3Config.value.secretAccessKey &&
+    s3Config.value.bucket &&
+    s3Config.value.endpoint &&
+    s3Config.value.region &&
+    cryptoSeed.value
   ) {
     await loadAWS();
     AWS.config.update({
-      accessKeyId: filebaseConfig.value.accessKeyId,
-      secretAccessKey: filebaseConfig.value.secretAccessKey,
-      endpoint: filebaseConfig.value.endpoint,
+      accessKeyId: s3Config.value.accessKeyId,
+      secretAccessKey: s3Config.value.secretAccessKey,
+      endpoint: s3Config.value.endpoint,
       s3ForcePathStyle: true,
       signatureVersion: 'v4',
-      region: 'us-east-1', // Filebase uses a single region
+      region: s3Config.value.region,
     });
 
     s3Client = new AWS.S3();
     isConfigured.value = true;
-    localStorage.setItem('filebaseConfig', JSON.stringify(filebaseConfig.value));
-    displayNotification("Filebase configuration saved successfully!");
+    localStorage.setItem('s3Config', JSON.stringify(s3Config.value));
+    localStorage.setItem('cryptoSeed', cryptoSeed.value);
+    displayNotification("S3 configuration saved successfully!");
   } else {
     isConfigured.value = false;
-    displayNotification("Please fill in all Filebase configuration fields.", "error");
+    displayNotification("Please fill in all S3 configuration fields and the crypto seed.", "error");
   }
+}
+
+function encryptData(data) {
+  const jsonString = JSON.stringify(data);
+  return CryptoJS.AES.encrypt(jsonString, cryptoSeed.value).toString();
+}
+
+function decryptData(encryptedData) {
+  const bytes = CryptoJS.AES.decrypt(encryptedData, cryptoSeed.value);
+  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 }
 
 async function syncWithCloud() {
   if (!isConfigured.value) {
-    displayNotification("Please configure Filebase first.", "error");
+    displayNotification("Please configure S3 and crypto seed first.", "error");
     return;
   }
 
@@ -69,15 +87,24 @@ async function syncWithCloud() {
   syncProgress.value = 0;
   try {
     const localData = await exportIndexedDBData();
-    syncProgress.value = 25;
+    syncProgress.value = 20;
 
-    const cloudData = await fetchCloudData();
-    syncProgress.value = 50;
+    const encryptedLocalData = encryptData(localData);
+    syncProgress.value = 40;
+
+    const encryptedCloudData = await fetchCloudData();
+    syncProgress.value = 60;
+
+    const cloudData = encryptedCloudData ? decryptData(encryptedCloudData) : {};
+    syncProgress.value = 70;
 
     const syncedData = mergeData(localData, cloudData);
-    syncProgress.value = 75;
+    syncProgress.value = 80;
 
-    await updateCloudData(syncedData);
+    const encryptedSyncedData = encryptData(syncedData);
+    await updateCloudData(encryptedSyncedData);
+    syncProgress.value = 90;
+
     await importDataToIndexedDB(syncedData);
 
     lastSyncTime.value = new Date().toLocaleString();
@@ -141,22 +168,17 @@ async function importDataToIndexedDB(data) {
 async function fetchCloudData() {
   return new Promise((resolve, reject) => {
     s3Client.getObject({
-      Bucket: filebaseConfig.value.bucket,
+      Bucket: s3Config.value.bucket,
       Key: "app-data.json"
     }, (err, data) => {
       if (err) {
         if (err.code === 'NoSuchKey') {
-          resolve({}); // Return empty object if the file doesn't exist yet
+          resolve(null); // Return null if the file doesn't exist yet
         } else {
           reject(err);
         }
       } else {
-        try {
-          const jsonData = JSON.parse(data.Body.toString());
-          resolve(jsonData);
-        } catch (parseError) {
-          reject(parseError);
-        }
+        resolve(data.Body.toString());
       }
     });
   });
@@ -165,9 +187,9 @@ async function fetchCloudData() {
 async function updateCloudData(data) {
   return new Promise((resolve, reject) => {
     s3Client.putObject({
-      Bucket: filebaseConfig.value.bucket,
+      Bucket: s3Config.value.bucket,
       Key: "app-data.json",
-      Body: JSON.stringify(data),
+      Body: data,
       ContentType: "application/json"
     }, (err, data) => {
       if (err) reject(err);
@@ -207,17 +229,18 @@ function displayNotification(message, type = "success") {
 }
 
 onMounted(async () => {
-  // Check if Filebase config is stored in localStorage
-  const storedConfig = localStorage.getItem('filebaseConfig');
-  if (storedConfig) {
-    filebaseConfig.value = JSON.parse(storedConfig);
-    await initializeFilebase();
+  // Check if S3 config and crypto seed are stored in localStorage
+  const storedConfig = localStorage.getItem('s3Config');
+  const storedSeed = localStorage.getItem('cryptoSeed');
+  if (storedConfig && storedSeed) {
+    s3Config.value = JSON.parse(storedConfig);
+    cryptoSeed.value = storedSeed;
+    await initializeS3();
   }
 });
 </script>
 
 <template>
-  <!-- The template remains unchanged -->
   <div class="min-h-screen bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center justify-center">
@@ -227,13 +250,13 @@ onMounted(async () => {
 
       <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
         <div class="p-6">
-          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Filebase Configuration</h2>
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">S3 Configuration</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label for="accessKeyId" class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
               <input
                 id="accessKeyId"
-                v-model="filebaseConfig.accessKeyId"
+                v-model="s3Config.accessKeyId"
                 type="text"
                 placeholder="Access Key ID"
                 class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -243,7 +266,7 @@ onMounted(async () => {
               <label for="secretAccessKey" class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
               <input
                 id="secretAccessKey"
-                v-model="filebaseConfig.secretAccessKey"
+                v-model="s3Config.secretAccessKey"
                 type="password"
                 placeholder="Secret Access Key"
                 class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -253,15 +276,45 @@ onMounted(async () => {
               <label for="bucket" class="block text-sm font-medium text-gray-700 mb-1">Bucket Name</label>
               <input
                 id="bucket"
-                v-model="filebaseConfig.bucket"
+                v-model="s3Config.bucket"
                 type="text"
                 placeholder="Bucket Name"
                 class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            <div>
+              <label for="endpoint" class="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
+              <input
+                id="endpoint"
+                v-model="s3Config.endpoint"
+                type="text"
+                placeholder="S3 Endpoint"
+                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label for="region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+              <input
+                id="region"
+                v-model="s3Config.region"
+                type="text"
+                placeholder="S3 Region"
+                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div class="mt-4">
+            <label for="cryptoSeed" class="block text-sm font-medium text-gray-700 mb-1">12-Word Crypto Seed</label>
+            <input
+              id="cryptoSeed"
+              v-model="cryptoSeed"
+              type="password"
+              placeholder="Enter your 12-word crypto seed"
+              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
           <button
-            @click="initializeFilebase"
+            @click="initializeS3"
             class="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center"
           >
             <Key class="mr-2" size="20" />
@@ -303,7 +356,7 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold text-gray-800 mb-2">Sync Status</h3>
           <div class="flex items-center justify-center">
             <RefreshCw class="text-green-500 mr-2" size="24" />
-            <p class="text-green-600">{{ isConfigured ? 'Ready to sync' : 'Filebase not configured' }}</p>
+            <p class="text-green-600">{{ isConfigured ? 'Ready to sync' : 'S3 not configured' }}</p>
           </div>
         </div>
       </div>
