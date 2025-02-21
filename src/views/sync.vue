@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import { Cloud, Database, Check, X, RefreshCw, Key, Lock, AlertTriangle, Copy, Upload, Download } from "lucide-vue-next";
+import { Cloud, Database, Check, X, Key, Lock, AlertTriangle, Copy, Upload, Download } from "lucide-vue-next";
 import { dbname as DataBaseName, db } from "@/db";
 import CryptoJS from "crypto-js";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -8,9 +8,11 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3
 const showNotification = ref(false);
 const notificationMessage = ref("");
 const notificationType = ref("success");
-const isSyncing = ref(false);
-const lastSyncTime = ref(null);
-const syncProgress = ref(0);
+const isBackingUp = ref(false);
+const isRestoring = ref(false);
+const lastBackupTime = ref(null);
+const backupProgress = ref(0);
+const restoreProgress = ref(0);
 const isConfigured = ref(false);
 
 const s3Config = ref({
@@ -28,7 +30,7 @@ let s3Client;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
-const masterSyncId = computed(() => {
+const masterBackupId = computed(() => {
   const configObject = {
     s3Config: s3Config.value,
     cryptoSeed: cryptoSeed.value
@@ -44,23 +46,23 @@ function hexToString(hex) {
   return hex.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
 }
 
-function exportMasterSyncId() {
-  navigator.clipboard.writeText(masterSyncId.value)
-    .then(() => displayNotification("Master Sync ID copied to clipboard!", "success"))
-    .catch(() => displayNotification("Failed to copy Master Sync ID", "error"));
+function exportMasterBackupId() {
+  navigator.clipboard.writeText(masterBackupId.value)
+    .then(() => displayNotification("Master Backup ID copied to clipboard!", "success"))
+    .catch(() => displayNotification("Failed to copy Master Backup ID", "error"));
 }
 
-function importMasterSyncId() {
-  const importedId = prompt("Please enter your Master Sync ID:");
+function importMasterBackupId() {
+  const importedId = prompt("Please enter your Master Backup ID:");
   if (importedId) {
     try {
       const configObject = JSON.parse(hexToString(importedId));
       s3Config.value = configObject.s3Config;
       cryptoSeed.value = configObject.cryptoSeed;
       initializeS3();
-      displayNotification("Master Sync ID imported successfully!", "success");
+      displayNotification("Master Backup ID imported successfully!", "success");
     } catch (error) {
-      displayNotification("Invalid Master Sync ID", "error");
+      displayNotification("Invalid Master Backup ID", "error");
     }
   }
 }
@@ -82,7 +84,7 @@ async function initializeS3() {
     });
 
     isConfigured.value = true;
-    localStorage.setItem("masterSyncId", masterSyncId.value);
+    localStorage.setItem("masterBackupId", masterBackupId.value);
     displayNotification("S3 configuration saved successfully!");
   } else {
     isConfigured.value = false;
@@ -110,44 +112,62 @@ function decryptData(encryptedData) {
   }
 }
 
-async function syncWithCloud() {
+async function backupToCloud() {
   if (!isConfigured.value) {
     displayNotification("Please configure S3 and crypto seed first.", "error");
     return;
   }
 
-  isSyncing.value = true;
-  syncProgress.value = 0;
+  isBackingUp.value = true;
+  backupProgress.value = 0;
   try {
     const localData = await retryOperation(exportIndexedDBData);
-    syncProgress.value = 20;
+    backupProgress.value = 40;
 
     const encryptedLocalData = encryptData(localData);
-    syncProgress.value = 40;
+    backupProgress.value = 70;
 
-    const encryptedCloudData = await retryOperation(fetchCloudData);
-    syncProgress.value = 60;
+    await retryOperation(() => updateCloudData(encryptedLocalData));
 
-    const cloudData = encryptedCloudData ? decryptData(encryptedCloudData) : {};
-    syncProgress.value = 70;
-
-    const syncedData = mergeData(localData, cloudData);
-    syncProgress.value = 80;
-
-    const encryptedSyncedData = encryptData(syncedData);
-    await retryOperation(() => updateCloudData(encryptedSyncedData));
-    syncProgress.value = 90;
-
-    await retryOperation(() => importDataToIndexedDB(syncedData));
-
-    lastSyncTime.value = new Date().toLocaleString();
-    syncProgress.value = 100;
-    displayNotification("Sync completed successfully!");
+    lastBackupTime.value = new Date().toLocaleString();
+    backupProgress.value = 100;
+    displayNotification("Backup completed successfully!");
   } catch (error) {
-    console.error("Sync failed:", error);
-    displayNotification("Sync failed. Please try again.", "error");
+    console.error("Backup failed:", error);
+    displayNotification("Backup failed. Please try again.", "error");
   } finally {
-    isSyncing.value = false;
+    isBackingUp.value = false;
+  }
+}
+
+async function restoreFromCloud() {
+  if (!isConfigured.value) {
+    displayNotification("Please configure S3 and crypto seed first.", "error");
+    return;
+  }
+
+  isRestoring.value = true;
+  restoreProgress.value = 0;
+  try {
+    const encryptedCloudData = await retryOperation(fetchCloudData);
+    restoreProgress.value = 30;
+
+    if (!encryptedCloudData) {
+      throw new Error("No backup found in the cloud");
+    }
+
+    const cloudData = decryptData(encryptedCloudData);
+    restoreProgress.value = 60;
+
+    await retryOperation(() => importDataToIndexedDB(cloudData));
+
+    restoreProgress.value = 100;
+    displayNotification("Restore completed successfully!");
+  } catch (error) {
+    console.error("Restore failed:", error);
+    displayNotification("Restore failed. Please try again.", "error");
+  } finally {
+    isRestoring.value = false;
   }
 }
 
@@ -201,8 +221,9 @@ async function importDataToIndexedDB(data) {
       for (const storeName of Object.keys(data)) {
         if (db.objectStoreNames.contains(storeName)) {
           const store = transaction.objectStore(storeName);
+          await store.clear(); // Clear existing data before importing
           for (const item of data[storeName]) {
-            store.put(item);
+            store.add(item);
           }
         }
       }
@@ -215,7 +236,7 @@ async function fetchCloudData() {
   try {
     const command = new GetObjectCommand({
       Bucket: s3Config.value.bucket,
-      Key: "t3vo.json",
+      Key: "t3vo_backup.json",
     });
     const response = await s3Client.send(command);
     return await response.Body.transformToString();
@@ -230,33 +251,11 @@ async function fetchCloudData() {
 async function updateCloudData(data) {
   const command = new PutObjectCommand({
     Bucket: s3Config.value.bucket,
-    Key: "t3vo.json",
+    Key: "t3vo_backup.json",
     Body: data,
     ContentType: "application/json",
   });
   return s3Client.send(command);
-}
-
-function mergeData(localData, cloudData) {
-  const mergedData = { ...cloudData };
-
-  for (const storeName in localData) {
-    if (!mergedData[storeName]) mergedData[storeName] = [];
-
-    localData[storeName].forEach((localItem) => {
-      const cloudItem = mergedData[storeName].find((item) => item.id === localItem.id);
-      if (!cloudItem || localItem.updated_at > cloudItem.updated_at) {
-        const index = mergedData[storeName].findIndex((item) => item.id === localItem.id);
-        if (index !== -1) {
-          mergedData[storeName][index] = localItem;
-        } else {
-          mergedData[storeName].push(localItem);
-        }
-      }
-    });
-  }
-
-  return mergedData;
 }
 
 function displayNotification(message, type = "success") {
@@ -269,11 +268,11 @@ function displayNotification(message, type = "success") {
 }
 
 onMounted(async () => {
-  // Check if master sync ID is stored in localStorage
-  const storedMasterSyncId = localStorage.getItem("masterSyncId");
-  if (storedMasterSyncId) {
+  // Check if master backup ID is stored in localStorage
+  const storedMasterBackupId = localStorage.getItem("masterBackupId");
+  if (storedMasterBackupId) {
     try {
-      const configObject = JSON.parse(hexToString(storedMasterSyncId));
+      const configObject = JSON.parse(hexToString(storedMasterBackupId));
       s3Config.value = configObject.s3Config;
       cryptoSeed.value = configObject.cryptoSeed;
       await initializeS3();
@@ -289,7 +288,7 @@ onMounted(async () => {
     <div class="max-w-4xl mx-auto">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center justify-center">
         <Database class="mr-4" size="36" />
-        Cloud Sync Manager - Experimental
+        Cloud Backup Manager
       </h1>
 
       <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
@@ -330,48 +329,54 @@ onMounted(async () => {
 
       <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
         <div class="p-6">
-          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Master Sync ID</h2>
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Master Backup ID</h2>
           <div class="flex items-center justify-between mb-4">
-            <input :value="masterSyncId" readonly class="w-full p-2 border border-gray-300 rounded-md mr-2" />
-            <button @click="exportMasterSyncId" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center">
+            <input :value="masterBackupId" readonly class="w-full p-2 border border-gray-300 rounded-md mr-2" />
+            <button @click="exportMasterBackupId" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center">
               <Copy class="mr-2" size="20" />
               Copy
             </button>
           </div>
-          <button @click="importMasterSyncId" class="w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
+          <button @click="importMasterBackupId" class="w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
             <Upload class="mr-2" size="20" />
-            Import Master Sync ID
+            Import Master Backup ID
           </button>
         </div>
       </div>
 
       <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="p-6">
-          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Cloud Sync</h2>
-          <button @click="syncWithCloud" :disabled="isSyncing || !isConfigured" class="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center" :class="{ 'opacity-50 cursor-not-allowed': isSyncing || !isConfigured }">
-            <Cloud class="mr-2" size="20" />
-            {{ isSyncing ? "Syncing..." : "Sync with Cloud" }}
-          </button>
-          <p v-if="lastSyncTime" class="mt-2 text-sm text-gray-600 text-center">Last synced: {{ lastSyncTime }}</p>
-        </div>
-      </div>
-
-      <div v-if="isSyncing" class="mt-6 bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="p-6">
-          <h3 class="text-lg font-semibold text-gray-800 mb-2">Sync Progress</h3>
-          <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" :style="{ width: `${syncProgress}%` }"></div>
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Cloud Backup</h2>
+          <div class="flex justify-between mb-4">
+            <button @click="backupToCloud" :disabled="isBackingUp || isRestoring || !isConfigured" class="w-1/2 mr-2 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center" :class="{ 'opacity-50 cursor-not-allowed': isBackingUp || isRestoring || !isConfigured }">
+              <Upload class="mr-2" size="20" />
+              {{ isBackingUp ? "Backing up..." : "Backup to Cloud" }}
+            </button>
+            <button @click="restoreFromCloud" :disabled="isBackingUp || isRestoring || !isConfigured" class="w-1/2 ml-2 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center" :class="{ 'opacity-50 cursor-not-allowed': isBackingUp || isRestoring || !isConfigured }">
+              <Download class="mr-2" size="20" />
+              {{ isRestoring ? "Restoring..." : "Restore from Cloud" }}
+            </button>
           </div>
-          <p class="text-sm text-gray-600 text-center">{{ syncProgress }}% Complete</p>
+          <p v-if="lastBackupTime" class="mt-2 text-sm text-gray-600 text-center">Last backup: {{ lastBackupTime }}</p>
         </div>
       </div>
 
-      <div v-if="!isSyncing" class="mt-6 bg-white rounded-xl shadow-lg overflow-hidden">
+      <div v-if="isBackingUp || isRestoring" class="mt-6 bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="p-6">
-          <h3 class="text-lg font-semibold text-gray-800 mb-2">Sync Status</h3>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ isBackingUp ? 'Backup' : 'Restore' }} Progress</h3>
+          <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" :style="{ width: `${isBackingUp ? backupProgress : restoreProgress}%` }"></div>
+          </div>
+          <p class="text-sm text-gray-600 text-center">{{ isBackingUp ? backupProgress : restoreProgress }}% Complete</p>
+        </div>
+      </div>
+
+      <div v-if="!isBackingUp && !isRestoring" class="mt-6 bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Backup Status</h3>
           <div class="flex items-center justify-center">
-            <RefreshCw class="text-green-500 mr-2" size="24" />
-            <p class="text-green-600">{{ isConfigured ? "Ready to sync" : "S3 not configured" }}</p>
+            <Cloud class="text-green-500 mr-2" size="24" />
+            <p class="text-green-600">{{ isConfigured ? "Ready for backup/restore" : "S3 not configured" }}</p>
           </div>
         </div>
       </div>
@@ -408,4 +413,3 @@ onMounted(async () => {
   opacity: 0;
 }
 </style>
-
