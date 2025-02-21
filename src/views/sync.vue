@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { Cloud, Database, Check, X, RefreshCw, Key, Lock } from "lucide-vue-next";
+import { Cloud, Database, Check, X, RefreshCw, Key, Lock, AlertTriangle } from "lucide-vue-next";
 import { dbname as DataBaseName, db } from "@/db";
 import CryptoJS from "crypto-js";
 
@@ -20,6 +20,7 @@ const loadAWS = async () => {
 
 const showNotification = ref(false);
 const notificationMessage = ref("");
+const notificationType = ref("success");
 const isSyncing = ref(false);
 const lastSyncTime = ref(null);
 const syncProgress = ref(0);
@@ -37,9 +38,14 @@ const cryptoSeed = ref("");
 
 let s3Client;
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
 async function initializeS3() {
   if (!cryptoSeed.value) {
-    cryptoSeed.value = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+    if (cryptoSeed.value.length < 10) {
+      cryptoSeed.value = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+    }
   }
 
   if (s3Config.value.accessKeyId && s3Config.value.secretAccessKey && s3Config.value.bucket && s3Config.value.endpoint && s3Config.value.region && cryptoSeed.value) {
@@ -65,13 +71,23 @@ async function initializeS3() {
 }
 
 function encryptData(data) {
-  const jsonString = JSON.stringify(data);
-  return CryptoJS.AES.encrypt(jsonString, cryptoSeed.value).toString();
+  try {
+    const jsonString = JSON.stringify(data);
+    return CryptoJS.AES.encrypt(jsonString, cryptoSeed.value).toString();
+  } catch (error) {
+    console.error("Encryption error:", error);
+    throw new Error("Failed to encrypt data");
+  }
 }
 
 function decryptData(encryptedData) {
-  const bytes = CryptoJS.AES.decrypt(encryptedData, cryptoSeed.value);
-  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+  try {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, cryptoSeed.value);
+    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+  } catch (error) {
+    console.error("Decryption error:", error);
+    throw new Error("Failed to decrypt data");
+  }
 }
 
 async function syncWithCloud() {
@@ -83,13 +99,13 @@ async function syncWithCloud() {
   isSyncing.value = true;
   syncProgress.value = 0;
   try {
-    const localData = await exportIndexedDBData();
+    const localData = await retryOperation(exportIndexedDBData);
     syncProgress.value = 20;
 
     const encryptedLocalData = encryptData(localData);
     syncProgress.value = 40;
 
-    const encryptedCloudData = await fetchCloudData();
+    const encryptedCloudData = await retryOperation(fetchCloudData);
     syncProgress.value = 60;
 
     const cloudData = encryptedCloudData ? decryptData(encryptedCloudData) : {};
@@ -99,10 +115,10 @@ async function syncWithCloud() {
     syncProgress.value = 80;
 
     const encryptedSyncedData = encryptData(syncedData);
-    await updateCloudData(encryptedSyncedData);
+    await retryOperation(() => updateCloudData(encryptedSyncedData));
     syncProgress.value = 90;
 
-    await importDataToIndexedDB(syncedData);
+    await retryOperation(() => importDataToIndexedDB(syncedData));
 
     lastSyncTime.value = new Date().toLocaleString();
     syncProgress.value = 100;
@@ -112,6 +128,17 @@ async function syncWithCloud() {
     displayNotification("Sync failed. Please try again.", "error");
   } finally {
     isSyncing.value = false;
+  }
+}
+
+async function retryOperation(operation, maxRetries = MAX_RETRIES) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+    }
   }
 }
 
@@ -138,28 +165,30 @@ async function exportIndexedDBData() {
 
 async function importDataToIndexedDB(data) {
   const request = indexedDB.open(DataBaseName);
-  request.onsuccess = async (event) => {
-    const db = event.target.result;
-    const transaction = db.transaction(db.objectStoreNames, "readwrite");
-    transaction.oncomplete = () => console.log("Data imported successfully");
-    transaction.onerror = () => console.log("Failed to import data");
+  return new Promise((resolve, reject) => {
+    request.onsuccess = async (event) => {
+      const db = event.target.result;
+      const transaction = db.transaction(db.objectStoreNames, "readwrite");
+      transaction.oncomplete = () => {
+        console.log("Data imported successfully");
+        resolve();
+      };
+      transaction.onerror = () => {
+        console.log("Failed to import data");
+        reject("Failed to import data");
+      };
 
-    for (const storeName of Object.keys(data)) {
-      if (db.objectStoreNames.contains(storeName)) {
-        const store = transaction.objectStore(storeName);
-        for (const item of data[storeName]) {
-          const getRequest = store.get(item.id);
-          getRequest.onsuccess = (e) => {
-            if (!e.target.result) {
-              store.add(item);
-            } else {
-              store.put(item);
-            }
-          };
+      for (const storeName of Object.keys(data)) {
+        if (db.objectStoreNames.contains(storeName)) {
+          const store = transaction.objectStore(storeName);
+          for (const item of data[storeName]) {
+            store.put(item);
+          }
         }
       }
-    }
-  };
+    };
+    request.onerror = () => reject("Failed to open IndexedDB");
+  });
 }
 
 async function fetchCloudData() {
@@ -225,10 +254,11 @@ function mergeData(localData, cloudData) {
 
 function displayNotification(message, type = "success") {
   notificationMessage.value = message;
+  notificationType.value = type;
   showNotification.value = true;
   setTimeout(() => {
     showNotification.value = false;
-  }, 3000);
+  }, 5000);
 }
 
 onMounted(async () => {
@@ -277,8 +307,8 @@ onMounted(async () => {
             </div>
           </div>
           <div class="mt-4">
-            <label for="cryptoSeed" class="block text-sm font-medium text-gray-700 mb-1">12-Word Crypto Seed</label>
-            <input id="cryptoSeed" v-model="cryptoSeed" type="password" placeholder="Enter your 12-word crypto seed" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            <label for="cryptoSeed" class="block text-sm font-medium text-gray-700 mb-1">Crypto Seed</label>
+            <input id="cryptoSeed" v-model="cryptoSeed" type="text" placeholder="Enter your 12-word crypto seed" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
           <button @click="initializeS3" class="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
             <Key class="mr-2" size="20" />
@@ -320,9 +350,18 @@ onMounted(async () => {
     </div>
 
     <transition name="fade">
-      <div v-if="showNotification" class="fixed bottom-4 right-4 p-4 rounded-md shadow-lg" :class="notificationMessage.includes('failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">
+      <div
+        v-if="showNotification"
+        class="fixed bottom-4 right-4 p-4 rounded-md shadow-lg"
+        :class="{
+          'bg-green-100 text-green-700': notificationType === 'success',
+          'bg-yellow-100 text-yellow-700': notificationType === 'warning',
+          'bg-red-100 text-red-700': notificationType === 'error',
+        }"
+      >
         <div class="flex items-center">
-          <Check v-if="!notificationMessage.includes('failed')" class="mr-2" size="20" />
+          <Check v-if="notificationType === 'success'" class="mr-2" size="20" />
+          <AlertTriangle v-else-if="notificationType === 'warning'" class="mr-2" size="20" />
           <X v-else class="mr-2" size="20" />
           <p>{{ notificationMessage }}</p>
         </div>
