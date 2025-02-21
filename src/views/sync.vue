@@ -1,22 +1,9 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { Cloud, Database, Check, X, RefreshCw, Key, Lock, AlertTriangle } from "lucide-vue-next";
+import { ref, onMounted, computed } from "vue";
+import { Cloud, Database, Check, X, RefreshCw, Key, Lock, AlertTriangle, Copy, Upload, Download } from "lucide-vue-next";
 import { dbname as DataBaseName, db } from "@/db";
 import CryptoJS from "crypto-js";
-
-// Create a shim for the global object
-if (typeof global === "undefined") {
-  window.global = window;
-}
-
-// We'll load the AWS SDK dynamically
-let AWS;
-const loadAWS = async () => {
-  if (!AWS) {
-    await import("aws-sdk/dist/aws-sdk.min.js");
-    AWS = window.AWS;
-  }
-};
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const showNotification = ref(false);
 const notificationMessage = ref("");
@@ -41,28 +28,61 @@ let s3Client;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
-async function initializeS3() {
-  if (!cryptoSeed.value) {
-    if (cryptoSeed.value.length < 10) {
-      cryptoSeed.value = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+const masterSyncId = computed(() => {
+  const configObject = {
+    s3Config: s3Config.value,
+    cryptoSeed: cryptoSeed.value
+  };
+  return stringToHex(JSON.stringify(configObject));
+});
+
+function stringToHex(str) {
+  return Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+}
+
+function hexToString(hex) {
+  return hex.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
+}
+
+function exportMasterSyncId() {
+  navigator.clipboard.writeText(masterSyncId.value)
+    .then(() => displayNotification("Master Sync ID copied to clipboard!", "success"))
+    .catch(() => displayNotification("Failed to copy Master Sync ID", "error"));
+}
+
+function importMasterSyncId() {
+  const importedId = prompt("Please enter your Master Sync ID:");
+  if (importedId) {
+    try {
+      const configObject = JSON.parse(hexToString(importedId));
+      s3Config.value = configObject.s3Config;
+      cryptoSeed.value = configObject.cryptoSeed;
+      initializeS3();
+      displayNotification("Master Sync ID imported successfully!", "success");
+    } catch (error) {
+      displayNotification("Invalid Master Sync ID", "error");
     }
+  }
+}
+
+async function initializeS3() {
+  if (!cryptoSeed.value || cryptoSeed.value.length < 10) {
+    cryptoSeed.value = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
   }
 
   if (s3Config.value.accessKeyId && s3Config.value.secretAccessKey && s3Config.value.bucket && s3Config.value.endpoint && s3Config.value.region && cryptoSeed.value) {
-    await loadAWS();
-    AWS.config.update({
-      accessKeyId: s3Config.value.accessKeyId,
-      secretAccessKey: s3Config.value.secretAccessKey,
+    s3Client = new S3Client({
+      credentials: {
+        accessKeyId: s3Config.value.accessKeyId,
+        secretAccessKey: s3Config.value.secretAccessKey,
+      },
       endpoint: s3Config.value.endpoint,
-      s3ForcePathStyle: true,
-      signatureVersion: "v4",
       region: s3Config.value.region,
+      forcePathStyle: true,
     });
 
-    s3Client = new AWS.S3();
     isConfigured.value = true;
-    localStorage.setItem("s3Config", JSON.stringify(s3Config.value));
-    localStorage.setItem("cryptoSeed", cryptoSeed.value);
+    localStorage.setItem("masterSyncId", masterSyncId.value);
     displayNotification("S3 configuration saved successfully!");
   } else {
     isConfigured.value = false;
@@ -192,42 +212,29 @@ async function importDataToIndexedDB(data) {
 }
 
 async function fetchCloudData() {
-  return new Promise((resolve, reject) => {
-    s3Client.getObject(
-      {
-        Bucket: s3Config.value.bucket,
-        Key: "t3vo.json",
-      },
-      (err, data) => {
-        if (err) {
-          if (err.code === "NoSuchKey") {
-            resolve(null); // Return null if the file doesn't exist yet
-          } else {
-            reject(err);
-          }
-        } else {
-          resolve(data.Body.toString());
-        }
-      }
-    );
-  });
+  try {
+    const command = new GetObjectCommand({
+      Bucket: s3Config.value.bucket,
+      Key: "t3vo.json",
+    });
+    const response = await s3Client.send(command);
+    return await response.Body.transformToString();
+  } catch (err) {
+    if (err.name === "NoSuchKey") {
+      return null; // Return null if the file doesn't exist yet
+    }
+    throw err;
+  }
 }
 
 async function updateCloudData(data) {
-  return new Promise((resolve, reject) => {
-    s3Client.putObject(
-      {
-        Bucket: s3Config.value.bucket,
-        Key: "t3vo.json",
-        Body: data,
-        ContentType: "application/json",
-      },
-      (err, data) => {
-        if (err) reject(err);
-        else resolve(data);
-      }
-    );
+  const command = new PutObjectCommand({
+    Bucket: s3Config.value.bucket,
+    Key: "t3vo.json",
+    Body: data,
+    ContentType: "application/json",
   });
+  return s3Client.send(command);
 }
 
 function mergeData(localData, cloudData) {
@@ -262,13 +269,17 @@ function displayNotification(message, type = "success") {
 }
 
 onMounted(async () => {
-  // Check if S3 config and crypto seed are stored in localStorage
-  const storedConfig = localStorage.getItem("s3Config");
-  const storedSeed = localStorage.getItem("cryptoSeed");
-  if (storedConfig && storedSeed) {
-    s3Config.value = JSON.parse(storedConfig);
-    cryptoSeed.value = storedSeed;
-    await initializeS3();
+  // Check if master sync ID is stored in localStorage
+  const storedMasterSyncId = localStorage.getItem("masterSyncId");
+  if (storedMasterSyncId) {
+    try {
+      const configObject = JSON.parse(hexToString(storedMasterSyncId));
+      s3Config.value = configObject.s3Config;
+      cryptoSeed.value = configObject.cryptoSeed;
+      await initializeS3();
+    } catch (error) {
+      console.error("Failed to load stored configuration:", error);
+    }
   }
 });
 </script>
@@ -313,6 +324,23 @@ onMounted(async () => {
           <button @click="initializeS3" class="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
             <Key class="mr-2" size="20" />
             Save Configuration
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+        <div class="p-6">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Master Sync ID</h2>
+          <div class="flex items-center justify-between mb-4">
+            <input :value="masterSyncId" readonly class="w-full p-2 border border-gray-300 rounded-md mr-2" />
+            <button @click="exportMasterSyncId" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center">
+              <Copy class="mr-2" size="20" />
+              Copy
+            </button>
+          </div>
+          <button @click="importMasterSyncId" class="w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
+            <Upload class="mr-2" size="20" />
+            Import Master Sync ID
           </button>
         </div>
       </div>
@@ -380,3 +408,4 @@ onMounted(async () => {
   opacity: 0;
 }
 </style>
+
