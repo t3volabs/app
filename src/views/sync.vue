@@ -2,10 +2,10 @@
 import { ref, onMounted } from "vue";
 import { Cloud, Database, Check, X, RefreshCw, Key, Lock } from "lucide-vue-next";
 import { dbname as DataBaseName, db } from "@/db";
-import CryptoJS from 'crypto-js';
+import CryptoJS from "crypto-js";
 
 // Create a shim for the global object
-if (typeof global === 'undefined') {
+if (typeof global === "undefined") {
   window.global = window;
 }
 
@@ -13,7 +13,7 @@ if (typeof global === 'undefined') {
 let AWS;
 const loadAWS = async () => {
   if (!AWS) {
-    await import('aws-sdk/dist/aws-sdk.min.js');
+    await import("aws-sdk/dist/aws-sdk.min.js");
     AWS = window.AWS;
   }
 };
@@ -38,28 +38,25 @@ const cryptoSeed = ref("");
 let s3Client;
 
 async function initializeS3() {
-  if (
-    s3Config.value.accessKeyId &&
-    s3Config.value.secretAccessKey &&
-    s3Config.value.bucket &&
-    s3Config.value.endpoint &&
-    s3Config.value.region &&
-    cryptoSeed.value
-  ) {
+  if (!cryptoSeed.value) {
+    cryptoSeed.value = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 14);
+  }
+
+  if (s3Config.value.accessKeyId && s3Config.value.secretAccessKey && s3Config.value.bucket && s3Config.value.endpoint && s3Config.value.region && cryptoSeed.value) {
     await loadAWS();
     AWS.config.update({
       accessKeyId: s3Config.value.accessKeyId,
       secretAccessKey: s3Config.value.secretAccessKey,
       endpoint: s3Config.value.endpoint,
       s3ForcePathStyle: true,
-      signatureVersion: 'v4',
+      signatureVersion: "v4",
       region: s3Config.value.region,
     });
 
     s3Client = new AWS.S3();
     isConfigured.value = true;
-    localStorage.setItem('s3Config', JSON.stringify(s3Config.value));
-    localStorage.setItem('cryptoSeed', cryptoSeed.value);
+    localStorage.setItem("s3Config", JSON.stringify(s3Config.value));
+    localStorage.setItem("cryptoSeed", cryptoSeed.value);
     displayNotification("S3 configuration saved successfully!");
   } else {
     isConfigured.value = false;
@@ -167,34 +164,40 @@ async function importDataToIndexedDB(data) {
 
 async function fetchCloudData() {
   return new Promise((resolve, reject) => {
-    s3Client.getObject({
-      Bucket: s3Config.value.bucket,
-      Key: "app-data.json"
-    }, (err, data) => {
-      if (err) {
-        if (err.code === 'NoSuchKey') {
-          resolve(null); // Return null if the file doesn't exist yet
+    s3Client.getObject(
+      {
+        Bucket: s3Config.value.bucket,
+        Key: "t3vo.json",
+      },
+      (err, data) => {
+        if (err) {
+          if (err.code === "NoSuchKey") {
+            resolve(null); // Return null if the file doesn't exist yet
+          } else {
+            reject(err);
+          }
         } else {
-          reject(err);
+          resolve(data.Body.toString());
         }
-      } else {
-        resolve(data.Body.toString());
       }
-    });
+    );
   });
 }
 
 async function updateCloudData(data) {
   return new Promise((resolve, reject) => {
-    s3Client.putObject({
-      Bucket: s3Config.value.bucket,
-      Key: "app-data.json",
-      Body: data,
-      ContentType: "application/json"
-    }, (err, data) => {
-      if (err) reject(err);
-      else resolve(data);
-    });
+    s3Client.putObject(
+      {
+        Bucket: s3Config.value.bucket,
+        Key: "t3vo.json",
+        Body: data,
+        ContentType: "application/json",
+      },
+      (err, data) => {
+        if (err) reject(err);
+        else resolve(data);
+      }
+    );
   });
 }
 
@@ -204,10 +207,10 @@ function mergeData(localData, cloudData) {
   for (const storeName in localData) {
     if (!mergedData[storeName]) mergedData[storeName] = [];
 
-    localData[storeName].forEach(localItem => {
-      const cloudItem = mergedData[storeName].find(item => item.id === localItem.id);
+    localData[storeName].forEach((localItem) => {
+      const cloudItem = mergedData[storeName].find((item) => item.id === localItem.id);
       if (!cloudItem || localItem.updated_at > cloudItem.updated_at) {
-        const index = mergedData[storeName].findIndex(item => item.id === localItem.id);
+        const index = mergedData[storeName].findIndex((item) => item.id === localItem.id);
         if (index !== -1) {
           mergedData[storeName][index] = localItem;
         } else {
@@ -230,8 +233,8 @@ function displayNotification(message, type = "success") {
 
 onMounted(async () => {
   // Check if S3 config and crypto seed are stored in localStorage
-  const storedConfig = localStorage.getItem('s3Config');
-  const storedSeed = localStorage.getItem('cryptoSeed');
+  const storedConfig = localStorage.getItem("s3Config");
+  const storedSeed = localStorage.getItem("cryptoSeed");
   if (storedConfig && storedSeed) {
     s3Config.value = JSON.parse(storedConfig);
     cryptoSeed.value = storedSeed;
@@ -245,7 +248,7 @@ onMounted(async () => {
     <div class="max-w-4xl mx-auto">
       <h1 class="text-4xl font-bold mb-8 text-gray-800 flex items-center justify-center">
         <Database class="mr-4" size="36" />
-        Cloud Sync Manager
+        Cloud Sync Manager - Experimental
       </h1>
 
       <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
@@ -254,69 +257,30 @@ onMounted(async () => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label for="accessKeyId" class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
-              <input
-                id="accessKeyId"
-                v-model="s3Config.accessKeyId"
-                type="text"
-                placeholder="Access Key ID"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <input id="accessKeyId" v-model="s3Config.accessKeyId" type="text" placeholder="Access Key ID" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
               <label for="secretAccessKey" class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
-              <input
-                id="secretAccessKey"
-                v-model="s3Config.secretAccessKey"
-                type="password"
-                placeholder="Secret Access Key"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <input id="secretAccessKey" v-model="s3Config.secretAccessKey" type="password" placeholder="Secret Access Key" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
               <label for="bucket" class="block text-sm font-medium text-gray-700 mb-1">Bucket Name</label>
-              <input
-                id="bucket"
-                v-model="s3Config.bucket"
-                type="text"
-                placeholder="Bucket Name"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <input id="bucket" v-model="s3Config.bucket" type="text" placeholder="Bucket Name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
               <label for="endpoint" class="block text-sm font-medium text-gray-700 mb-1">Endpoint</label>
-              <input
-                id="endpoint"
-                v-model="s3Config.endpoint"
-                type="text"
-                placeholder="S3 Endpoint"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <input id="endpoint" v-model="s3Config.endpoint" type="text" placeholder="S3 Endpoint" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
               <label for="region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
-              <input
-                id="region"
-                v-model="s3Config.region"
-                type="text"
-                placeholder="S3 Region"
-                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <input id="region" v-model="s3Config.region" type="text" placeholder="S3 Region" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
           </div>
           <div class="mt-4">
             <label for="cryptoSeed" class="block text-sm font-medium text-gray-700 mb-1">12-Word Crypto Seed</label>
-            <input
-              id="cryptoSeed"
-              v-model="cryptoSeed"
-              type="password"
-              placeholder="Enter your 12-word crypto seed"
-              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <input id="cryptoSeed" v-model="cryptoSeed" type="password" placeholder="Enter your 12-word crypto seed" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
-          <button
-            @click="initializeS3"
-            class="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center"
-          >
+          <button @click="initializeS3" class="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center justify-center">
             <Key class="mr-2" size="20" />
             Save Configuration
           </button>
@@ -326,18 +290,11 @@ onMounted(async () => {
       <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="p-6">
           <h2 class="text-2xl font-semibold text-gray-800 mb-4">Cloud Sync</h2>
-          <button
-            @click="syncWithCloud"
-            :disabled="isSyncing || !isConfigured"
-            class="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center"
-            :class="{ 'opacity-50 cursor-not-allowed': isSyncing || !isConfigured }"
-          >
+          <button @click="syncWithCloud" :disabled="isSyncing || !isConfigured" class="w-full bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center" :class="{ 'opacity-50 cursor-not-allowed': isSyncing || !isConfigured }">
             <Cloud class="mr-2" size="20" />
-            {{ isSyncing ? 'Syncing...' : 'Sync with Cloud' }}
+            {{ isSyncing ? "Syncing..." : "Sync with Cloud" }}
           </button>
-          <p v-if="lastSyncTime" class="mt-2 text-sm text-gray-600 text-center">
-            Last synced: {{ lastSyncTime }}
-          </p>
+          <p v-if="lastSyncTime" class="mt-2 text-sm text-gray-600 text-center">Last synced: {{ lastSyncTime }}</p>
         </div>
       </div>
 
@@ -356,7 +313,7 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold text-gray-800 mb-2">Sync Status</h3>
           <div class="flex items-center justify-center">
             <RefreshCw class="text-green-500 mr-2" size="24" />
-            <p class="text-green-600">{{ isConfigured ? 'Ready to sync' : 'S3 not configured' }}</p>
+            <p class="text-green-600">{{ isConfigured ? "Ready to sync" : "S3 not configured" }}</p>
           </div>
         </div>
       </div>
